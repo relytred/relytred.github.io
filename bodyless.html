@@ -3,7 +3,7 @@
         <title>IFRAME TOWN</title>
     </head>
     <style>
-        body {
+        html {
             margin: 0;
             padding: 0;
             height: 100%;
@@ -49,13 +49,11 @@
             setTimeout(() => ele.remove(), 10000)
         }
     </script>
-    <body>
-        <div class="title">HOWDY PARDNER, WELCOME TO IFRAME TOWN!</div>
-        <button onclick="addIframe()">Add alert! </button> 
-        <div class="iframe-container">
-            <iframe src="/iframe-town-inner-1.html"></iframe>
-            <iframe src="/iframe-town-inner-1.html"></iframe>
-            <!--iframe src="https://someapp.com/"></iframe-->
-        </div>
-    </body>
+      <div class="title">HOWDY PARDNER, WELCOME TO IFRAME TOWN!</div>
+      <button onclick="addIframe()">Add alert! </button> 
+      <div class="iframe-container">
+          <iframe src="/iframe-town-inner-1.html"></iframe>
+          <iframe src="/iframe-town-inner-1.html"></iframe>
+          <!--iframe src="https://someapp.com/"></iframe-->
+      </div>
 </html>

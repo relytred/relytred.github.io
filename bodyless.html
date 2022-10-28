@@ -45,15 +45,17 @@
             const ele = document.createElement('div');
             ele.innerText = 'This alert will hide after a lil bit';
             ele.className = 'alert';
-            document.body.appendChild(ele);
+            // document.body.appendChild(ele);
             setTimeout(() => ele.remove(), 10000)
         }
     </script>
+    <frameset>
       <div class="title">HOWDY PARDNER, WELCOME TO IFRAME TOWN!</div>
-      <button onclick="addIframe()">Add alert! </button> 
+      <button onclick="">Add alert borken! </button> 
       <div class="iframe-container">
           <iframe src="/iframe-town-inner-1.html"></iframe>
           <iframe src="/iframe-town-inner-1.html"></iframe>
           <!--iframe src="https://someapp.com/"></iframe-->
       </div>
+    </frameset>
 </html>

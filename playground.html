@@ -27,6 +27,10 @@
             margin-bottom: 20px;
             background: magenta;
         }
+
+        .blockedP {
+            display: block;
+        }
     </style>
     <script>
         function addAlert() {
@@ -39,8 +43,11 @@
         }
     </script>
     <body>
-        <div class="title">Welcome ot the guide building playground!</div>
-        <button onclick="addAlert()">Add alert! </button>
-
+        <div class="title">Welcome to the guide building playground!</div>
+        <div class="buttonHolder">
+            <p class="blockedP">This button will add an alert to the page </p>
+            <button onclick="addAlert()">Add alert! </button>
+            <p class="blockedP">Drom me a like, comment, and subscribe! </p>
+        </div>
     </body>
 </html>

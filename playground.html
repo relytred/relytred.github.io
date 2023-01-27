@@ -34,7 +34,6 @@
     </style>
     <script>
         function addAlert() {
-            console.log('tyler addAlert');
             const ele = document.createElement('div');
             ele.innerText = 'This alert will hide after a lil bit';
             ele.className = 'alert';
@@ -47,7 +46,7 @@
         <div class="title">Welcome to the guide building playground!</div>
         <div class="buttonHolder">
             <p class="blockedP">This button will add an alert to the page </p>
-            <button onclick="addAlert()">Add alert! </button>
+            <button class="addAlert" onclick="addAlert()">Add alert! </button>
             <p class="blockedP">Drop me a like, comment, and subscribe! </p>
         </div>
     </body>

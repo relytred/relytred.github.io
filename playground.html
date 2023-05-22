@@ -44,7 +44,28 @@
             ele.setAttribute('id', 'alert');
             document.body.appendChild(ele);
             setTimeout(() => ele.remove(), 10000)
+
         }
+
+        const events = [
+            'change',
+            'input',
+            'keydown',
+            'keyup',
+            'keypress'
+        ];
+
+        function changeEvent(event, type) {
+            console.log('input changeEvent', type, event);
+        }
+        setTimeout(() => {
+            const input = document.getElementById('myInput');
+
+            events.forEach(type => {
+                const handler = (e) => changeEvent(e, type);
+                input.addEventListener(type, handler);
+            });
+        }, 1000);
     </script>
     <body>
         <div class="title">Welcome to the guide building playground!</div>
@@ -70,6 +91,7 @@
         </div>
         <div class="inputHolder">
             <p class="blockedP">Valid autofill inputs</p>
+                <input id="myInput" class="input">
                 <input class="input" type="date">
                 <input class="input" type="datetime-local">
                 <input class="input" type="email">

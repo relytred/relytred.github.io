@@ -44,7 +44,10 @@
             ele.setAttribute('id', 'alert');
             document.body.appendChild(ele);
             setTimeout(() => ele.remove(), 10000)
+        }
 
+        function resize () {
+            window.resizeTo(500, 500);
         }
 
         const events = [
@@ -72,6 +75,8 @@
         <div class="buttonHolder">
             <p class="blockedP">This button will add an alert to the page </p>
             <button class="addAlert" onclick="addAlert()">Add alert! </button>
+            <button class="resize" onclick="resize()">Resize </button>
+
             <p class="blockedP">Drop me a like, comment, and subscribe! </p>
             <select class="pets">
                 <option value="">Pick a pet</option>

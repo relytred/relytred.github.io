@@ -1,0 +1,53 @@
+<html>
+
+<head>
+    <style>
+        .form {
+           width: 750px;
+           max-width: 100%;
+           display: flex;
+           justify-content: space-between;
+           flex-wrap: wrap;
+        }
+
+        .data {
+            min-width: 45%;
+            margin-bottom: 20px;
+        }
+    </style>
+
+<script>
+    var currentFrame;
+    function addIframe(src) {
+        if(currentFrame) {
+            currentFrame.remove();
+        };
+
+        const iframe = document.createElement('iframe');
+        iframe.src = src;
+        document.getElementById('#frameParent').appendChild(iframe);
+
+    }
+</script>
+    <script>// Turns out pendo's snippet requires at least one script tag in the head</script>
+    
+</head>
+
+<body>
+    <div class="form">
+        <div class="data"> 
+            <label> Name </label>
+            <input />
+        </div>
+        <div class="data"> 
+            <label> Favorite turtle breed </label>
+            <input />        
+        </div>
+        <div class="data"> 
+            <label> Lucky number</label>
+            <input type="number" min="8" max="8"/>        
+        </div>
+    </div>
+</body>
+
+</html>

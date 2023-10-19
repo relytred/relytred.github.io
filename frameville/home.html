@@ -1,0 +1,58 @@
+<html>
+
+<head>
+    <style>
+        .tabBar {
+           width: 100%;
+           display: flex;
+           background: grey;
+        }
+
+        .tab {
+            min-width: 40px;
+            margin-right: 100px;
+            outline: 1px solid blanchedalmond;
+            height: 100%;
+            padding: 20px;
+        }
+
+        iframe {
+            width: 100%;
+            height: 800px;
+        }
+    </style>
+
+<script>
+    var currentFrame;
+    function addIframe(src) {
+        if(currentFrame) {
+            currentFrame.remove();
+        };
+
+        currentFrame = document.createElement('iframe');
+        currentFrame.src = src;
+        document.getElementById('frameParent').appendChild(currentFrame);
+    }
+</script>
+    <script>// Turns out pendo's snippet requires at least one script tag in the head</script>
+    
+</head>
+
+<body>
+    <div class="tabBar">
+        <div class="tab" onclick="addIframe('../iframe-town-inner-1.html')"> 
+            What's new
+        </div>
+        <div class="tab" onclick="addIframe('../playground.html')"> 
+            Playground
+        </div> 
+        <div class="tab" onclick="addIframe('./account.html')"> 
+            Account 
+        </div> 
+    </div>
+    <div id="frameParent">
+
+    </div>
+</body>
+
+</html>

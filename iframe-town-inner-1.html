@@ -43,6 +43,18 @@
 
                 ele.classList.toggle('visible');
             }
+
+            window.addEventListener('unload', e => {
+                console.log('EVENT >>> iframe-town-inner-1: unload', e);
+            })
+
+            window.addEventListener('beforeunload', e => {
+                console.log('EVENT >>> iframe-town-inner-1: beforeunload', e);
+            })
+
+            window.addEventListener('pagehide', e => {
+                console.log('EVENT >>> iframe-town-inner-1: pagehide', e);
+            })
         </script>
     </head>
     <body>

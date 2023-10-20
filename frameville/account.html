@@ -28,6 +28,18 @@
         document.getElementById('#frameParent').appendChild(iframe);
 
     }
+
+    window.addEventListener('unload', e => {
+                console.log('EVENT >>> account: unload', e);
+            })
+
+    window.addEventListener('beforeunload', e => {
+        console.log('EVENT >>> account: beforeunload', e);
+    })
+
+    window.addEventListener('pagehide', e => {
+        console.log('EVENT >>> account: pagehide', e);
+    })
 </script>
     <script>// Turns out pendo's snippet requires at least one script tag in the head</script>
     

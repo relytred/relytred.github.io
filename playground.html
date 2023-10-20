@@ -61,6 +61,19 @@
         function changeEvent(event, type) {
             console.log('input changeEvent', type, event);
         }
+
+        window.addEventListener('unload', e => {
+                console.log('EVENT >>> playground: unload', e);
+            })
+
+        window.addEventListener('beforeunload', e => {
+            console.log('EVENT >>> playground: beforeunload', e);
+        })
+
+        window.addEventListener('pagehide', e => {
+            console.log('EVENT >>> playground: pagehide', e);
+        })
+        
         setTimeout(() => {
             const input = document.getElementById('myInput');
 

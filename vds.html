@@ -40,11 +40,12 @@
     </script>
     <script>
         (function(apiKey){
-            (function(p,e,n,d,o){var v,w,x,y,z;o=p[d]=p[d]||{};o._q=o._q||[];
-            v=['initialize','identify','updateOptions','pageLoad','track'];for(w=0,x=v.length;w<x;++w)(function(m){
-                o[m]=o[m]||function(){o._q[m===v[0]?'unshift':'push']([m].concat([].slice.call(arguments,0)));};})(v[w]);
-                y=e.createElement(n);y.async=!0;y.src='https://cdn.pendo-atlas.pendo-dev.com/agent/static/'+apiKey+'/pendo.js';
-                z=e.getElementsByTagName(n)[0];z.parentNode.insertBefore(y,z);})(window,document,'script','pendo');
+            (function(apiKey){
+                (function(p,e,n,d,o){var v,w,x,y,z;o=p[d]=p[d]||{};o._q=o._q||[];
+                v=['initialize','identify','updateOptions','pageLoad','track'];for(w=0,x=v.length;w<x;++w)(function(m){
+                    o[m]=o[m]||function(){o._q[m===v[0]?'unshift':'push']([m].concat([].slice.call(arguments,0)));};})(v[w]);
+                    y=e.createElement(n);y.async=!0;y.src='https://cdn.pendo-calypso.pendo-dev.com/agent/static/'+apiKey+'/pendo.js';
+                    z=e.getElementsByTagName(n)[0];z.parentNode.insertBefore(y,z);})(window,document,'script','pendo');  
         
                 // This function creates anonymous visitor IDs in Pendo unless you change the visitor id field to use your app's values
                 // This function uses the placeholder 'ACCOUNT-UNIQUE-ID' value for account ID unless you change the account id field to use your app's values
@@ -74,7 +75,7 @@
                         // as long as it's not one of the above reserved names.
                     }
                 });
-        })('a7d9bbbd-ba2d-4e65-494a-cf548543550a');
+            })('cc4f86cc-7831-4e46-4b13-c4216d69d7af');
     </script>
     <body>
         <div class="title">Welcome to the guide building playground!</div>

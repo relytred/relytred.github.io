@@ -1,0 +1,194 @@
+<html>
+    <head>
+        <title>IFRAME TOWN</title>
+    </head>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+        }
+
+        .title {
+            width: 100%;
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+            margin-top: 10px;
+            margin-bottom: 20px;
+        }
+
+        .alert {
+            width: 100%;
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 10px;
+            margin-bottom: 20px;
+            background: magenta;
+        }
+
+        .blockedP {
+            display: block;
+        }
+
+        .input {
+            width: 100px;
+        }
+    </style>
+    <script>
+        function addAlert() {
+            const ele = document.createElement('div');
+            ele.innerText = 'This alert will hide after a lil bit';
+            ele.className = 'alert';
+            ele.setAttribute('id', 'alert');
+            document.body.appendChild(ele);
+            setTimeout(() => ele.remove(), 10000)
+        }
+
+        function resize () {
+            window.resizeTo(500, 500);
+        }
+
+        const events = [
+            'change',
+            'input',
+            'keydown',
+            'keyup',
+            'keypress'
+        ];
+
+        function changeEvent(event, type) {
+            console.log('input changeEvent', type, event);
+        }
+
+        window.addEventListener('unload', e => {
+                console.log('EVENT >>> playground: unload', e);
+            })
+
+        window.addEventListener('beforeunload', e => {
+            console.log('EVENT >>> playground: beforeunload', e);
+        })
+
+        window.addEventListener('pagehide', e => {
+            console.log('EVENT >>> playground: pagehide', e);
+        })
+        
+        setTimeout(() => {
+            const input = document.getElementById('myInput');
+
+            events.forEach(type => {
+                const handler = (e) => changeEvent(e, type);
+                input.addEventListener(type, handler);
+            });
+        }, 1000);
+    </script>
+        <script>
+            function getInitParams () {
+                const params = {};
+                if (!window.location.search) return params;
+                const queryParams = window.location.search.substr(1, window.location.search.length).split('&');
+                queryParams.forEach(param => {
+                    const splitParam = param.split('=');
+                    params[splitParam[0]] = splitParam[1]
+                });
+
+                return params;
+            }
+
+            (function(apiKey){
+                const data = getInitParams();
+                const visitorId = data['visitorId'] || 'tyler.mayle@pendo.io';
+                const key  = data['apiKey'] || apiKey;
+                const env = data['env'] || 'atlas';
+                (function(p,e,n,d,o){var v,w,x,y,z;o=p[d]=p[d]||{};o._q=o._q||[];
+                v=['initialize','identify','updateOptions','pageLoad','track'];for(w=0,x=v.length;w<x;++w)(function(m){
+                    o[m]=o[m]||function(){o._q[m===v[0]?'unshift':'push']([m].concat([].slice.call(arguments,0)));};})(v[w]);
+                    y=e.createElement(n);y.async=!0;y.src='https://cdn.pendo-'+env+'.pendo-dev.com/agent/static/'+key+'/pendo.js';
+                    z=e.getElementsByTagName(n)[0];z.parentNode.insertBefore(y,z);})(window,document,'script','pendo');  
+        
+                // This function creates anonymous visitor IDs in Pendo unless you change the visitor id field to use your app's values
+                // This function uses the placeholder 'ACCOUNT-UNIQUE-ID' value for account ID unless you change the account id field to use your app's values
+                // Call this function after users are authenticated in your app and your visitor and account id values are available
+                // Please use Strings, Numbers, or Bools for value types.
+                pendo.initialize({
+                    visitor: {
+                        id:              visitorId   // Required if user is logged in, default creates anonymous ID
+                        // email:        // Recommended if using Pendo Feedback, or NPS Email
+                        // full_name:    // Recommended if using Pendo Feedback
+                        // role:         // Optional
+        
+                        // You can add any additional visitor level key-values here,
+                        // as long as it's not one of the above reserved names.
+                    },
+        
+                    account: {
+                        id:           12345 // Required if using Pendo Feedback, default uses the value 'ACCOUNT-UNIQUE-ID'
+                        // name:         // Optional
+                        // is_paying:    // Recommended if using Pendo Feedback
+                        // monthly_value:// Recommended if using Pendo Feedback
+                        // planLevel:    // Optional
+                        // planPrice:    // Optional
+                        // creationDate: // Optional
+        
+                        // You can add any additional account level key-values here,
+                        // as long as it's not one of the above reserved names.
+                    }
+                });
+            })('a7d9bbbd-ba2d-4e65-494a-cf548543550a');
+        </script>
+    <body>
+        <div class="title">Welcome to the guide building playground!</div>
+        <div class="buttonHolder">
+            <p class="blockedP">This button will add an alert to the page </p>
+            <button class="addAlert" onclick="addAlert()">Add alert! </button>
+            <button class="resize" onclick="resize()">Resize </button>
+
+            <p class="blockedP">Drop me a like, comment, and subscribe! </p>
+            <select class="pets">
+                <option value="">Pick a pet</option>
+                <option value="dog" class="dogOption">Dog</option>
+                <option value="cat" class="catOption">Cat</option>
+                <option value="hamster" class="hamOption">Hamster</option>
+                <option value="goldfish" class="fishOption">Goldfish</option>
+            </select>
+            <div>
+                <input type="radio" id="html" name="fav_language" value="HTML">
+                <label for="html">HTML</label><br>
+                <input type="radio" id="css" name="fav_language" value="CSS">
+                <label for="css">CSS</label><br>
+                <input type="radio" id="javascript" name="fav_language" value="JavaScript">
+                <label for="javascript">JavaScript</label>
+            </div>
+        </div>
+        <div class="inputHolder">
+            <p class="blockedP">Valid autofill inputs</p>
+                <input id="myInput" class="input">
+                <input class="input" type="date">
+                <input class="input" type="datetime-local">
+                <input class="input" type="email">
+                <input class="input" type="month">
+                <input class="input" type="number">
+                <input class="input" type="password">
+                <input class="input" type="search">
+                <input class="input" type="tel">
+                <input class="input" type="text">
+                <input class="input" type="time">
+                <input class="input" type="url">
+                <input class="input" type="week">
+                <input class="input" type="hidden">
+                <input class="input" type="range">
+        </div>
+        <div class="inputHolder">
+            <p class="blockedP">Invalid autofill inputs</p>
+            <input class="input" type="button">
+            <input class="input" type="checkbox">
+            <input class="input" type="color">
+            <input class="input" type="image">
+            <input class="input" type="radio">
+            <input class="input" type="reset">
+            <input class="input" type="submit">
+            <input class="input" type="file">
+        </div>
+    </body>
+</html>

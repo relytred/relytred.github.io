@@ -27,6 +27,10 @@
             margin-bottom: 20px;
             background: magenta;
         }
+
+        .button {
+            margin-right: 8px;
+        }
     </style>
     <script>
         function addAlert() {
@@ -36,6 +40,11 @@
             ele.setAttribute('id', 'alert')
             document.body.appendChild(ele);
             setTimeout(() => ele.remove(), 10000)
+        }
+
+        function testLocation() {
+            console.log('im locating');
+            pendo.location.setUrl('https://relytred.github.io/fakeLocation');
         }
     </script>
     <script>
@@ -78,7 +87,8 @@
     </script>
     <body>
         <div class="title">Welcome to the guide building playground!</div>
-        <button onclick="addAlert()">Add alert! </button>
+        <button class='button' onclick="addAlert()">Add alert! </button>
+        <button class='button' onclick="testLocation()">Locate me </button>
         <iframe sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" allow="" frameborder="0" src="/sandboxed.html"></iframe>
     </body>
 </html>

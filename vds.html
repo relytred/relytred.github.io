@@ -31,6 +31,15 @@
         .button {
             margin-right: 8px;
         }
+
+        .subheader {
+            display: flex;
+            width: 80%;
+            align-items: stretch;
+            position: relative;
+            left: 10%;
+            flex-direction: row-reverse;
+        }
     </style>
     <script>
         function addAlert() {
@@ -87,6 +96,9 @@
     </script>
     <body>
         <div class="title">Welcome to the guide building playground!</div>
+        <div class="subheader">
+            <button>Right align</button>
+        </div>
         <button class='button' onclick="addAlert()">Add alert! </button>
         <button class='button' onclick="testLocation()">Locate me </button>
         <iframe sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" allow="" frameborder="0" src="/sandboxed.html"></iframe>

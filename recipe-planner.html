@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recipe & Meal Planner</title>
+    <link rel="stylesheet" href="static/css/recipe-planner.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Navigation -->
+        <nav class="sidebar">
+            <div class="logo">
+                <i class="fas fa-utensils"></i>
+                <h2>Recipe Planner</h2>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item active" data-section="recipes">
+                    <i class="fas fa-book"></i>
+                    <span>Recipes</span>
+                </li>
+                <li class="nav-item" data-section="meal-planner">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>Meal Planner</span>
+                </li>
+                <li class="nav-item" data-section="shopping-list">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span>Shopping List</span>
+                </li>
+                <li class="nav-item" data-section="search">
+                    <i class="fas fa-search"></i>
+                    <span>Search & Filter</span>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Recipes Section -->
+            <section id="recipes" class="content-section active">
+                <div class="section-header">
+                    <h1>My Recipes</h1>
+                    <button class="btn btn-primary" id="add-recipe-btn">
+                        <i class="fas fa-plus"></i> Add Recipe
+                    </button>
+                </div>
+                
+                <div class="recipe-filters">
+                    <select id="category-filter">
+                        <option value="">All Categories</option>
+                        <option value="breakfast">Breakfast</option>
+                        <option value="lunch">Lunch</option>
+                        <option value="dinner">Dinner</option>
+                        <option value="dessert">Dessert</option>
+                        <option value="snack">Snack</option>
+                        <option value="appetizer">Appetizer</option>
+                    </select>
+                    <input type="text" id="recipe-search" placeholder="Search recipes...">
+                </div>
+
+                <div class="recipes-grid" id="recipes-grid">
+                    <!-- Recipe cards will be populated here -->
+                </div>
+            </section>
+
+            <!-- Meal Planner Section -->
+            <section id="meal-planner" class="content-section">
+                <div class="section-header">
+                    <h1>Meal Planner</h1>
+                    <div class="date-navigation">
+                        <button id="prev-week" class="btn btn-secondary">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <span id="current-week"></span>
+                        <button id="next-week" class="btn btn-secondary">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="meal-planner-grid" id="meal-planner-grid">
+                    <!-- Meal planner calendar will be populated here -->
+                </div>
+            </section>
+
+            <!-- Shopping List Section -->
+            <section id="shopping-list" class="content-section">
+                <div class="section-header">
+                    <h1>Shopping List</h1>
+                    <button class="btn btn-primary" id="generate-shopping-list">
+                        <i class="fas fa-sync"></i> Generate from Meal Plan
+                    </button>
+                </div>
+
+                <div class="shopping-list-container">
+                    <div class="shopping-categories" id="shopping-categories">
+                        <!-- Shopping list categories will be populated here -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Search & Filter Section -->
+            <section id="search" class="content-section">
+                <div class="section-header">
+                    <h1>Search & Filter Recipes</h1>
+                </div>
+
+                <div class="advanced-search">
+                    <div class="search-row">
+                        <input type="text" id="advanced-search-input" placeholder="Search by name or ingredient...">
+                        <select id="dietary-filter">
+                            <option value="">Any Diet</option>
+                            <option value="vegetarian">Vegetarian</option>
+                            <option value="vegan">Vegan</option>
+                            <option value="gluten-free">Gluten-Free</option>
+                            <option value="dairy-free">Dairy-Free</option>
+                            <option value="keto">Keto</option>
+                            <option value="paleo">Paleo</option>
+                        </select>
+                    </div>
+                    <div class="search-row">
+                        <label>Max Prep Time: <span id="prep-time-value">60</span> minutes</label>
+                        <input type="range" id="prep-time-slider" min="5" max="120" value="60">
+                    </div>
+                    <button class="btn btn-primary" id="apply-filters">Apply Filters</button>
+                </div>
+
+                <div class="search-results" id="search-results">
+                    <!-- Search results will be populated here -->
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Recipe Modal -->
+    <div class="modal" id="recipe-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Add New Recipe</h2>
+                <span class="close" id="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="recipe-form">
+                    <div class="form-group">
+                        <label for="recipe-name">Recipe Name *</label>
+                        <input type="text" id="recipe-name" required>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="recipe-category">Category</label>
+                            <select id="recipe-category">
+                                <option value="breakfast">Breakfast</option>
+                                <option value="lunch">Lunch</option>
+                                <option value="dinner">Dinner</option>
+                                <option value="dessert">Dessert</option>
+                                <option value="snack">Snack</option>
+                                <option value="appetizer">Appetizer</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="recipe-servings">Servings</label>
+                            <input type="number" id="recipe-servings" min="1" value="4">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="recipe-prep-time">Prep Time (minutes)</label>
+                            <input type="number" id="recipe-prep-time" min="0" value="15">
+                        </div>
+                        <div class="form-group">
+                            <label for="recipe-cook-time">Cook Time (minutes)</label>
+                            <input type="number" id="recipe-cook-time" min="0" value="30">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="recipe-dietary">Dietary Tags</label>
+                        <div class="dietary-tags">
+                            <label><input type="checkbox" value="vegetarian"> Vegetarian</label>
+                            <label><input type="checkbox" value="vegan"> Vegan</label>
+                            <label><input type="checkbox" value="gluten-free"> Gluten-Free</label>
+                            <label><input type="checkbox" value="dairy-free"> Dairy-Free</label>
+                            <label><input type="checkbox" value="keto"> Keto</label>
+                            <label><input type="checkbox" value="paleo"> Paleo</label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="recipe-ingredients">Ingredients *</label>
+                        <div class="ingredients-list" id="ingredients-list">
+                            <div class="ingredient-item">
+                                <input type="text" placeholder="e.g., 2 cups flour" class="ingredient-input">
+                                <button type="button" class="remove-ingredient">×</button>
+                            </div>
+                        </div>
+                        <button type="button" id="add-ingredient" class="btn btn-secondary">Add Ingredient</button>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="recipe-instructions">Instructions *</label>
+                        <div class="instructions-list" id="instructions-list">
+                            <div class="instruction-item">
+                                <textarea placeholder="Step 1: Describe the first step..." class="instruction-input"></textarea>
+                                <button type="button" class="remove-instruction">×</button>
+                            </div>
+                        </div>
+                        <button type="button" id="add-instruction" class="btn btn-secondary">Add Step</button>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="recipe-notes">Notes (optional)</label>
+                        <textarea id="recipe-notes" placeholder="Any additional notes or tips..."></textarea>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" id="cancel-recipe">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Recipe</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="static/js/recipe-planner.js"></script>
+</body>
+</html>

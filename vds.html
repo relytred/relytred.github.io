@@ -55,6 +55,138 @@
             console.log('im locating');
             pendo.location.setUrl('https://relytred.github.io/fakeLocation');
         }
+
+        // Define a custom element with shadow DOM
+        class ShadowSection extends HTMLElement {
+            constructor() {
+                super();
+                
+                // Create shadow root
+                const shadow = this.attachShadow({ mode: 'open' });
+                
+                // Create the HTML structure
+                shadow.innerHTML = `
+                    <style>
+                        .shadow-container {
+                            border: 2px solid #333;
+                            border-radius: 8px;
+                            padding: 20px;
+                            margin: 20px 0;
+                            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+                            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                        }
+                        
+                        .shadow-title {
+                            font-size: 18px;
+                            font-weight: bold;
+                            color: #333;
+                            margin-bottom: 15px;
+                            text-align: center;
+                        }
+                        
+                        .text-block {
+                            background: white;
+                            padding: 10px 15px;
+                            margin: 10px 0;
+                            border-left: 4px solid #4CAF50;
+                            border-radius: 4px;
+                            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                        }
+                        
+                        .button-group {
+                            display: flex;
+                            gap: 10px;
+                            margin: 15px 0;
+                            justify-content: center;
+                        }
+                        
+                        .shadow-button {
+                            background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+                            color: white;
+                            border: none;
+                            padding: 10px 20px;
+                            border-radius: 5px;
+                            cursor: pointer;
+                            font-size: 14px;
+                            transition: transform 0.2s;
+                        }
+                        
+                        .shadow-button:hover {
+                            transform: translateY(-2px);
+                        }
+                        
+                        .empty-container {
+                            border: 2px dashed #ccc;
+                            min-height: 100px;
+                            margin: 15px 0;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            color: #999;
+                            font-style: italic;
+                            background: rgba(255,255,255,0.5);
+                            border-radius: 4px;
+                        }
+                    </style>
+                    
+                    <div class="shadow-container">
+                        <div class="shadow-title">Shadow DOM Section</div>
+                        
+                        <div class="text-block">
+                            <strong>Text Block 1:</strong> This is the first text block inside the shadow DOM. 
+                            It's completely encapsulated and isolated from the main document styles.
+                        </div>
+                        
+                        <div class="text-block">
+                            <strong>Text Block 2:</strong> This is another text block demonstrating how 
+                            multiple text elements can coexist within the shadow boundary.
+                        </div>
+                        
+                        <div class="text-block">
+                            <strong>Text Block 3:</strong> Shadow DOM provides style isolation, meaning 
+                            these styles won't affect the parent document and vice versa.
+                        </div>
+                        
+                        <div class="button-group">
+                            <button class="shadow-button" id="btn1">Action Button</button>
+                            <button class="shadow-button" id="btn2">Another Action</button>
+                            <button class="shadow-button" id="btn3">Third Button</button>
+                        </div>
+                        
+                        <div class="empty-container" id="emptyContainer">
+                            Empty Container - Ready for content
+                        </div>
+                    </div>
+                `;
+                
+                // Add event listeners to buttons
+                this.shadowRoot.getElementById('btn1').addEventListener('click', () => {
+                    console.log('Shadow DOM Button 1 clicked');
+                    this.updateContainer('Button 1 was clicked!');
+                });
+                
+                this.shadowRoot.getElementById('btn2').addEventListener('click', () => {
+                    console.log('Shadow DOM Button 2 clicked');
+                    this.updateContainer('Button 2 was pressed!');
+                });
+                
+                this.shadowRoot.getElementById('btn3').addEventListener('click', () => {
+                    console.log('Shadow DOM Button 3 clicked');
+                    this.updateContainer('Button 3 activated!');
+                });
+            }
+            
+            updateContainer(message) {
+                const container = this.shadowRoot.getElementById('emptyContainer');
+                container.innerHTML = `<div style="color: #4CAF50; font-weight: bold;">${message}</div>`;
+                setTimeout(() => {
+                    container.innerHTML = 'Empty Container - Ready for content';
+                }, 3000);
+            }
+        }
+        
+        // Register the custom element
+        customElements.define('shadow-section', ShadowSection);
     </script>
     <script>
         (function(apiKey){
@@ -101,6 +233,10 @@
         </div>
         <button class='button' onclick="addAlert()">Add alert! </button>
         <button class='button' onclick="testLocation()">Locate me </button>
+        
+        <!-- Shadow DOM Section -->
+        <shadow-section></shadow-section>
+        
         <iframe sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" allow="" frameborder="0" src="/sandboxed.html"></iframe>
     </body>
 </html>

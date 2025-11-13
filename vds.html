@@ -1,6 +1,7 @@
 <html>
     <head>
         <title>VDS TOWN</title>
+        <meta name="referrer" content="no-referrer" />
     </head>
     <style>
         body {
@@ -189,42 +190,71 @@
         customElements.define('shadow-section', ShadowSection);
     </script>
     <script>
+
+        const user1 = {
+            visitor: {
+                id:              'tyler.mayle@pendo.io'
+            },
+            account: {
+                id:           12345,
+                brand_color: 'blanched almond',
+                is_my_default: true
+            }
+        }
+
+        const user2 = {
+            visitor: {
+                id:              'john.doe@pendo.io'
+            },
+            account: {
+                id:           67890 ,
+                is_my_default: false,
+                brand_color: 'azure',
+                rarity: 'rare'
+            }
+        }
+
+        const user3 = {
+            visitor: {
+                id:              'jane.smith@pendo.io'
+            },
+            account: {
+                id:           12345,
+                is_my_default: false,
+                satisfaction_score: 5
+            }
+        }
+
+        const users = {
+            user1,
+            user2,
+            user3,
+        }
+
+
+        function getUser() {
+            const url = new URL(window.location.href);
+            const userId = url.searchParams.get('userId');
+            const user = users[userId] || user1
+
+            return user;
+        }
+
         (function(apiKey){
             (function(p,e,n,d,o){var v,w,x,y,z;o=p[d]=p[d]||{};o._q=o._q||[];
             v=['initialize','identify','updateOptions','pageLoad','track'];for(w=0,x=v.length;w<x;++w)(function(m){
                 o[m]=o[m]||function(){o._q[m===v[0]?'unshift':'push']([m].concat([].slice.call(arguments,0)));};})(v[w]);
-                y=e.createElement(n);y.async=!0;y.src='https://cdn.pendo-atlas.pendo-dev.com/agent/static/'+apiKey+'/pendo.js';
+                y=e.createElement(n);y.async=!0;y.src='https://cdn.pendo-test.pendo-dev.com/agent/static/'+apiKey+'/pendo.js';
                 z=e.getElementsByTagName(n)[0];z.parentNode.insertBefore(y,z);})(window,document,'script','pendo');  
     
             // This function creates anonymous visitor IDs in Pendo unless you change the visitor id field to use your app's values
             // This function uses the placeholder 'ACCOUNT-UNIQUE-ID' value for account ID unless you change the account id field to use your app's values
             // Call this function after users are authenticated in your app and your visitor and account id values are available
             // Please use Strings, Numbers, or Bools for value types.
-            pendo.initialize({
-                visitor: {
-                    id:              'tyler.mayle@pendo.io'   // Required if user is logged in, default creates anonymous ID
-                    // email:        // Recommended if using Pendo Feedback, or NPS Email
-                    // full_name:    // Recommended if using Pendo Feedback
-                    // role:         // Optional
-    
-                    // You can add any additional visitor level key-values here,
-                    // as long as it's not one of the above reserved names.
-                },
-    
-                account: {
-                    id:           12345 // Required if using Pendo Feedback, default uses the value 'ACCOUNT-UNIQUE-ID'
-                    // name:         // Optional
-                    // is_paying:    // Recommended if using Pendo Feedback
-                    // monthly_value:// Recommended if using Pendo Feedback
-                    // planLevel:    // Optional
-                    // planPrice:    // Optional
-                    // creationDate: // Optional
-    
-                    // You can add any additional account level key-values here,
-                    // as long as it's not one of the above reserved names.
-                }
-            });
-        })('bc842892-890f-45bc-4104-bb08da92ddb4');
+            const user = getUser();
+
+            pendo.initialize(user);
+        })('a1cd7c55-f8a1-41cd-57ca-c6ca1015668e');     //('bc842892-890f-45bc-4104-bb08da92ddb4');
     </script>
     <body>
         <div class="title">Welcome to the guide building playground!</div>

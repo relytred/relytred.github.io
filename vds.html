@@ -244,7 +244,7 @@
             (function(p,e,n,d,o){var v,w,x,y,z;o=p[d]=p[d]||{};o._q=o._q||[];
             v=['initialize','identify','updateOptions','pageLoad','track'];for(w=0,x=v.length;w<x;++w)(function(m){
                 o[m]=o[m]||function(){o._q[m===v[0]?'unshift':'push']([m].concat([].slice.call(arguments,0)));};})(v[w]);
-                y=e.createElement(n);y.async=!0;y.src='https://cdn.pendo-test.pendo-dev.com/agent/static/'+apiKey+'/pendo.js';
+                y=e.createElement(n);y.async=!0;y.src='https://cdn.pendo-atlas.pendo-dev.com/agent/static/'+apiKey+'/pendo.js';
                 z=e.getElementsByTagName(n)[0];z.parentNode.insertBefore(y,z);})(window,document,'script','pendo');  
     
             // This function creates anonymous visitor IDs in Pendo unless you change the visitor id field to use your app's values
@@ -254,7 +254,7 @@
             const user = getUser();
 
             pendo.initialize(user);
-        })('a1cd7c55-f8a1-41cd-57ca-c6ca1015668e');      //('bc842892-890f-45bc-4104-bb08da92ddb4');
+        })('bc842892-890f-45bc-4104-bb08da92ddb4');
     </script>
     <body>
         <div class="title">Welcome to the guide building playground!</div>

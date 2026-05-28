@@ -41,6 +41,119 @@
             left: 10%;
             flex-direction: row-reverse;
         }
+
+        /* ── Identification modal ─────────────────────────────── */
+        .id-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.45);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .id-overlay.hidden { display: none; }
+
+        .identification-form {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            width: 380px;
+            max-width: 95vw;
+            font-family: Arial, sans-serif;
+        }
+
+        .form-title {
+            font-size: 22px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 24px;
+            color: #333;
+        }
+
+        .form-group { margin-bottom: 18px; }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: bold;
+            color: #555;
+            font-size: 14px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 15px;
+            box-sizing: border-box;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .required { color: #e74c3c; }
+
+        .expiry-hint {
+            font-size: 12px;
+            color: #999;
+            margin-top: 4px;
+        }
+
+        .submit-btn {
+            width: 100%;
+            background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 13px;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .submit-btn:hover { transform: translateY(-2px); }
+
+        /* ── Session banner ───────────────────────────────────── */
+        .session-banner {
+            display: none;
+            background: white;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 8px 16px;
+            font-family: Arial, sans-serif;
+            font-size: 13px;
+            color: #555;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .session-banner.visible { display: flex; }
+
+        .session-banner strong { color: #333; }
+
+        .session-banner .expiry-label {
+            color: #888;
+            margin-left: auto;
+        }
+
+        .clear-session-btn {
+            background: none;
+            border: 1px solid #ccc;
+            color: #888;
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: border-color 0.2s, color 0.2s;
+        }
+
+        .clear-session-btn:hover { border-color: #e74c3c; color: #e74c3c; }
     </style>
     <script>
         function addAlert() {
@@ -190,78 +303,121 @@
         customElements.define('shadow-section', ShadowSection);
     </script>
     <script>
-
-        const user1 = {
-            visitor: {
-                id:              'tyler.mayle@pendo.io'
-            },
-            account: {
-                id:           12345,
-                brand_color: 'blanched almond',
-                is_my_default: true
-            }
-        }
-
-        const user2 = {
-            visitor: {
-                id:              'john.doe@pendo.io'
-            },
-            account: {
-                id:           67890 ,
-                is_my_default: false,
-                brand_color: 'azure',
-                rarity: 'rare'
-            }
-        }
-
-        const user3 = {
-            visitor: {
-                id:              'jane.smith@pendo.io'
-            },
-            account: {
-                id:           12345,
-                is_my_default: false,
-                satisfaction_score: 5
-            }
-        }
-
-        const users = {
-            user1,
-            user2,
-            user3,
-        }
-
-
-        function getUser() {
-            const url = new URL(window.location.href);
-            const userId = url.searchParams.get('userId');
-            const user = users[userId] || user1
-
-            return user;
-        }
+        const STORAGE_KEY = 'pendo_session';
 
         (function(apiKey){
             (function(p,e,n,d,o){var v,w,x,y,z;o=p[d]=p[d]||{};o._q=o._q||[];
             v=['initialize','identify','updateOptions','pageLoad','track'];for(w=0,x=v.length;w<x;++w)(function(m){
                 o[m]=o[m]||function(){o._q[m===v[0]?'unshift':'push']([m].concat([].slice.call(arguments,0)));};})(v[w]);
                 y=e.createElement(n);y.async=!0;y.src='https://cdn.pendo-atlas.pendo-dev.com/agent/static/'+apiKey+'/pendo.js';
-                z=e.getElementsByTagName(n)[0];z.parentNode.insertBefore(y,z);})(window,document,'script','pendo');  
-    
-            // This function creates anonymous visitor IDs in Pendo unless you change the visitor id field to use your app's values
-            // This function uses the placeholder 'ACCOUNT-UNIQUE-ID' value for account ID unless you change the account id field to use your app's values
-            // Call this function after users are authenticated in your app and your visitor and account id values are available
-            // Please use Strings, Numbers, or Bools for value types.
-            const user = getUser();
-
-            pendo.initialize(user);
+                z=e.getElementsByTagName(n)[0];z.parentNode.insertBefore(y,z);})(window,document,'script','pendo');
         })('bc842892-890f-45bc-4104-bb08da92ddb4');
+
+        function saveSession(visitorId, accountId, expiryHours) {
+            const expiresAt = Date.now() + expiryHours * 60 * 60 * 1000;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ visitorId, accountId, expiresAt }));
+        }
+
+        function loadSession() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) return null;
+                const session = JSON.parse(raw);
+                if (Date.now() > session.expiresAt) {
+                    localStorage.removeItem(STORAGE_KEY);
+                    return null;
+                }
+                return session;
+            } catch {
+                return null;
+            }
+        }
+
+        function formatExpiry(expiresAt) {
+            return expiresAt ? new Date(expiresAt).toLocaleString() : 'this session only';
+        }
+
+        function activateSession(visitorId, accountId, expiresAt) {
+            pendo.initialize({
+                visitor: { id: visitorId },
+                account: { id: accountId || 'no-account' }
+            });
+
+            document.getElementById('idOverlay').classList.add('hidden');
+
+            const banner = document.getElementById('sessionBanner');
+            banner.classList.add('visible');
+            banner.querySelector('#bannerVisitor').textContent = visitorId;
+            banner.querySelector('#bannerAccount').textContent = accountId || 'none';
+            banner.querySelector('#bannerExpiry').textContent = formatExpiry(expiresAt);
+        }
+
+        function clearSession() {
+            localStorage.removeItem(STORAGE_KEY);
+            document.getElementById('idOverlay').classList.remove('hidden');
+            document.getElementById('sessionBanner').classList.remove('visible');
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('userForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const visitorId = document.getElementById('visitorId').value.trim();
+                const accountId = document.getElementById('accountId').value.trim();
+                const expiryHours = Math.max(0, Math.min(720, parseInt(document.getElementById('expiryHours').value, 10) || 0));
+
+                if (!visitorId) { alert('Visitor ID is required'); return; }
+
+                const expiresAt = expiryHours > 0 ? Date.now() + expiryHours * 60 * 60 * 1000 : null;
+                if (expiryHours > 0) saveSession(visitorId, accountId, expiryHours);
+                activateSession(visitorId, accountId, expiresAt);
+            });
+
+            document.getElementById('clearSessionBtn').addEventListener('click', clearSession);
+
+            const session = loadSession();
+            if (session) {
+                activateSession(session.visitorId, session.accountId, session.expiresAt);
+            }
+        });
     </script>
-    <body>
+    <body class="foo">
+        <!-- Identification modal overlay -->
+        <div id="idOverlay" class="id-overlay">
+            <div class="identification-form">
+                <div class="form-title">Identify Yourself</div>
+                <form id="userForm">
+                    <div class="form-group">
+                        <label for="visitorId">Visitor ID <span class="required">*</span></label>
+                        <input type="text" id="visitorId" name="visitorId" required placeholder="Enter your visitor ID">
+                    </div>
+                    <div class="form-group">
+                        <label for="accountId">Account ID</label>
+                        <input type="text" id="accountId" name="accountId" placeholder="Enter your account ID (optional)">
+                    </div>
+                    <div class="form-group">
+                        <label for="expiryHours">Session expires after</label>
+                        <input type="number" id="expiryHours" name="expiryHours" min="0" max="720" value="24" placeholder="24">
+                        <div class="expiry-hint">hours — 0 to skip saving, 1 – 720 to persist</div>
+                    </div>
+                    <button type="submit" class="submit-btn">Submit</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Session banner (shown after identification) -->
+        <div id="sessionBanner" class="session-banner">
+            <span><strong>Visitor:</strong> <span id="bannerVisitor"></span></span>
+            <span><strong>Account:</strong> <span id="bannerAccount"></span></span>
+            <span class="expiry-label">Expires: <span id="bannerExpiry"></span></span>
+            <button class="clear-session-btn" id="clearSessionBtn">Clear session</button>
+        </div>
+
         <div class="title">Welcome to the guide building playground!</div>
         <div class="subheader">
             <button>Right align</button>
+            <button>Right align</button>
         </div>
-        <button class='button' onclick="addAlert()">Add alert! </button>
+        <button class='--alert-button' onclick="addAlert()">Add alert! </button>
         <button class='button' onclick="testLocation()">Locate me </button>
         
         <!-- Shadow DOM Section -->

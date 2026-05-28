@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Experiments Page</title>
+    <meta name="referrer" content="no-referrer" />
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .identification-form {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            max-width: 400px;
+            width: 100%;
+            margin-top: 50px;
+        }
+
+        .form-title {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 30px;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .required {
+            color: #e74c3c;
+        }
+
+        .submit-btn {
+            width: 100%;
+            background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 5px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .submit-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .experiments-page {
+            display: none;
+            width: 100%;
+            max-width: 800px;
+            margin-top: 50px;
+        }
+
+        .experiments-header {
+            font-size: 36px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 40px;
+            color: #333;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .user-info {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .experiment-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .experiment-btn {
+            padding: 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        }
+
+        .experiment-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+        }
+
+        .experiment-btn.red {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a52);
+        }
+
+        .experiment-btn.blue {
+            background: linear-gradient(45deg, #4ecdc4, #44a08d);
+        }
+
+        .experiment-btn.green {
+            background: linear-gradient(45deg, #a8e6cf, #7fcdcd);
+        }
+
+        .experiment-btn.purple {
+            background: linear-gradient(45deg, #a8a8e6, #7f7fcd);
+        }
+
+        .experiment-btn.orange {
+            background: linear-gradient(45deg, #ffd93d, #ff6b35);
+        }
+
+        .experiment-btn.pink {
+            background: linear-gradient(45deg, #ff9ff3, #f368e0);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .expiry-hint {
+            font-size: 12px;
+            color: #999;
+            margin-top: 4px;
+        }
+
+        .session-expiry {
+            font-size: 13px;
+            color: #888;
+            margin-top: 8px;
+        }
+
+        .session-expiry span {
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .clear-session-btn {
+            margin-top: 12px;
+            background: none;
+            border: 1px solid #ccc;
+            color: #888;
+            padding: 6px 14px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: border-color 0.2s, color 0.2s;
+        }
+
+        .clear-session-btn:hover {
+            border-color: #e74c3c;
+            color: #e74c3c;
+        }
+    </style>
+</head>
+<body>
+    <!-- Identification Form -->
+    <div id="identificationForm" class="identification-form">
+        <div class="form-title">Identify Yourself</div>
+        <form id="userForm">
+            <div class="form-group">
+                <label for="visitorId">Visitor ID <span class="required">*</span></label>
+                <input type="text" id="visitorId" name="visitorId" required placeholder="Enter your visitor ID">
+            </div>
+            
+            <div class="form-group">
+                <label for="accountId">Account ID</label>
+                <input type="text" id="accountId" name="accountId" placeholder="Enter your account ID (optional)">
+            </div>
+
+            <div class="form-group">
+                <label for="expiryHours">Session expires after</label>
+                <input type="number" id="expiryHours" name="expiryHours" min="0" max="720" value="24" placeholder="24">
+                <div class="expiry-hint">hours — 0 to skip saving, 1 – 720 to persist</div>
+            </div>
+            
+            <button type="submit" class="submit-btn">Submit</button>
+        </form>
+    </div>
+
+    <!-- Experiments Page -->
+    <div id="experimentsPage" class="experiments-page">
+        <h1 class="experiments-header">Experiments Page</h1>
+        
+        <div class="user-info">
+            <div><strong>Visitor ID:</strong> <span id="displayVisitorId"></span></div>
+            <div><strong>Account ID:</strong> <span id="displayAccountId"></span></div>
+            <div class="session-expiry">Session expires: <span id="displayExpiry"></span></div>
+            <button class="clear-session-btn" id="clearSessionBtn">Clear session</button>
+        </div>
+
+        <div class="experiment-buttons">
+            <button class="experiment-btn red" id="experiment-feature-a">Experiment A</button>
+            <button class="experiment-btn blue" id="experiment-feature-b">Experiment B</button>
+            <button class="experiment-btn green" id="experiment-feature-c">Experiment C</button>
+            <button class="experiment-btn purple" id="experiment-feature-d">Experiment D</button>
+            <button class="experiment-btn orange" id="experiment-feature-e">Experiment E</button>
+            <button class="experiment-btn pink" id="experiment-feature-f">Experiment F</button>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'pendo_session';
+
+        let currentVisitorId = '';
+        let currentAccountId = '';
+
+        // Pendo initialization script (same as vds.html)
+        (function(apiKey){
+            (function(p,e,n,d,o){var v,w,x,y,z;o=p[d]=p[d]||{};o._q=o._q||[];
+            v=['initialize','identify','updateOptions','pageLoad','track'];for(w=0,x=v.length;w<x;++w)(function(m){
+                o[m]=o[m]||function(){o._q[m===v[0]?'unshift':'push']([m].concat([].slice.call(arguments,0)));};})(v[w]);
+                y=e.createElement(n);y.async=!0;y.src='https://cdn.pendo-atlas.pendo-dev.com/agent/static/'+apiKey+'/pendo.js';
+                z=e.getElementsByTagName(n)[0];z.parentNode.insertBefore(y,z);})(window,document,'script','pendo');
+        })('bc842892-890f-45bc-4104-bb08da92ddb4');
+
+        function saveSession(visitorId, accountId, expiryHours) {
+            const expiresAt = Date.now() + expiryHours * 60 * 60 * 1000;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ visitorId, accountId, expiresAt }));
+        }
+
+        function loadSession() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) return null;
+                const session = JSON.parse(raw);
+                if (Date.now() > session.expiresAt) {
+                    localStorage.removeItem(STORAGE_KEY);
+                    return null;
+                }
+                return session;
+            } catch {
+                return null;
+            }
+        }
+
+        function clearSession() {
+            localStorage.removeItem(STORAGE_KEY);
+            currentVisitorId = '';
+            currentAccountId = '';
+            document.getElementById('experimentsPage').style.display = 'none';
+            document.getElementById('identificationForm').style.display = 'block';
+        }
+
+        function formatExpiry(expiresAt) {
+            return expiresAt ? new Date(expiresAt).toLocaleString() : 'this session only';
+        }
+
+        function activateSession(visitorId, accountId, expiresAt) {
+            currentVisitorId = visitorId;
+            currentAccountId = accountId;
+
+            pendo.initialize({
+                visitor: { id: visitorId },
+                account: { id: accountId || 'no-account' }
+            });
+
+            document.getElementById('identificationForm').style.display = 'none';
+            document.getElementById('experimentsPage').style.display = 'block';
+            document.getElementById('displayVisitorId').textContent = visitorId;
+            document.getElementById('displayAccountId').textContent = accountId || 'Not provided';
+            document.getElementById('displayExpiry').textContent = formatExpiry(expiresAt);
+        }
+
+        // On load, restore session from localStorage if still valid
+        (function() {
+            const session = loadSession();
+            if (session) {
+                activateSession(session.visitorId, session.accountId, session.expiresAt);
+            }
+        })();
+
+        // Handle form submission
+        document.getElementById('userForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const visitorId = document.getElementById('visitorId').value.trim();
+            const accountId = document.getElementById('accountId').value.trim();
+            const expiryHours = Math.max(0, Math.min(720, parseInt(document.getElementById('expiryHours').value, 10) || 0));
+
+            if (!visitorId) {
+                alert('Visitor ID is required');
+                return;
+            }
+
+            const expiresAt = expiryHours > 0 ? Date.now() + expiryHours * 60 * 60 * 1000 : null;
+            if (expiryHours > 0) saveSession(visitorId, accountId, expiryHours);
+            activateSession(visitorId, accountId, expiresAt);
+        });
+
+        document.getElementById('clearSessionBtn').addEventListener('click', clearSession);
+
+        // Add click handlers for experiment buttons
+        document.addEventListener('DOMContentLoaded', function() {
+            const experimentButtons = document.querySelectorAll('.experiment-btn');
+
+            experimentButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const buttonId = this.id;
+
+                    console.log('Button clicked:', {
+                        id: buttonId,
+                        visitorId: currentVisitorId,
+                        accountId: currentAccountId
+                    });
+                });
+            });
+        });
+    </script>
+</body>
+</html>

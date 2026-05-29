@@ -107,8 +107,10 @@
                 <li>Page rule for <strong>both steps</strong>: URL contains <code>relytred.github.io/guide-reload-repro</code></li>
                 <li>Launch method: <code>Auto</code> (or use badge — open it to start)</li>
                 <li>Activate the guide, then reload this page</li>
-                <li>When Step 1 appears, click a <strong>sidebar link</strong> or press the <strong>yellow "Trigger URL Change"</strong> button in the bottom bar</li>
-                <li>Advance the guide — you should see <strong>both steps visible simultaneously</strong> (multiple <code>pendo-base</code> divs)</li>
+                <li>Click the green <strong>"Slow Mode OFF"</strong> button to enable the 3-second fetch delay</li>
+                <li>When Step 1 appears, click the <strong>yellow "Trigger URL Change"</strong> button — this fires <code>loadGuides</code></li>
+                <li>Within 3 seconds, click <strong>Next</strong> on the guide (while the fetch is in-flight)</li>
+                <li>The debug bar will show <strong><code>pendo-base divs: 2 ← BUG REPRODUCED!</code></strong> in red</li>
             </ol>
             <span id="hide-setup" onclick="document.getElementById('setup-banner').classList.add('hidden')">[ hide these instructions ]</span>
         </div>
@@ -197,8 +199,35 @@
     <span id="debug-url"></span>
     <span class="label">| loadGuides calls:</span>
     <span id="loadguides-count">0</span>
+    <button id="slow-btn" onclick="toggleSlowMode()" style="background:#22c55e;color:#fff;border:none;border-radius:4px;padding:4px 12px;font-size:12px;font-weight:bold;cursor:pointer;">🐢 Slow Mode OFF</button>
     <button id="trigger-btn" onclick="triggerUrlChange()">⚡ Trigger URL Change</button>
 </div>
+
+<!-- Fetch interceptor — must run BEFORE Pendo loads so we wrap the native fetch -->
+<script>
+(function() {
+    var delay = 0;
+    var origFetch = window.fetch.bind(window);
+
+    window.fetch = function() {
+        var args = arguments;
+        var url  = args[0];
+        var urlStr = (url && typeof url === 'string') ? url : (url && url.url) ? url.url : '';
+        // Only slow down Pendo API calls, not the agent script itself
+        if (delay > 0 && urlStr.indexOf('pendo') !== -1 && urlStr.indexOf('/static/') === -1) {
+            console.log('[REPRO] Slow Mode: delaying fetch by ' + delay + 'ms for', urlStr);
+            return new Promise(function(resolve, reject) {
+                setTimeout(function() {
+                    origFetch.apply(window, args).then(resolve, reject);
+                }, delay);
+            });
+        }
+        return origFetch.apply(window, args);
+    };
+
+    window.__setFetchDelay = function(ms) { delay = ms; };
+})();
+</script>
 
 <!-- Pendo snippet (dev environment) -->
 <script>
@@ -222,11 +251,10 @@ pendo.initialize({
 
     function navigate(accountId) {
         currentAccount = accountId;
-        // Change the hash — this is what triggers pageLoad() → Events.urlChanged → loadGuides
-        window.location.hash = '#/accounts/' + accountId + '?tabGroup=' + accountId + '&direct=true';
+        // Note: window.location.hash setter takes the fragment WITHOUT a leading '#'
+        window.location.hash = '/accounts/' + accountId + '?tabGroup=' + accountId + '&direct=true';
         document.getElementById('breadcrumb').textContent =
             'Account \u203a ' + accountId + ' \u203a Add Master Marketing Submission';
-        // Highlight active nav item
         document.querySelectorAll('#sidebar-nav a').forEach(function(a) {
             a.classList.toggle('active', a.dataset.account === accountId);
         });
@@ -236,9 +264,20 @@ pendo.initialize({
     var triggerCount = 0;
     function triggerUrlChange() {
         triggerCount++;
-        // Add a unique param to guarantee the URL looks different to Pendo
-        window.location.hash = '#/accounts/' + currentAccount + '?tabGroup=t' + Date.now() + '&direct=true';
-        console.log('[REPRO] Manual URL change triggered (#' + triggerCount + ')');
+        // Timestamp suffix guarantees a URL Pendo hasn't seen before → always fires loadGuides
+        window.location.hash = '/accounts/' + currentAccount + '?tabGroup=t' + Date.now() + '&direct=true';
+        console.log('[REPRO] URL change triggered (#' + triggerCount + ') — now click Next within 3s if Slow Mode is on');
+    }
+
+    // Toggle 3-second fetch delay on Pendo API calls
+    var slowModeOn = false;
+    function toggleSlowMode() {
+        slowModeOn = !slowModeOn;
+        window.__setFetchDelay(slowModeOn ? 3000 : 0);
+        var btn = document.getElementById('slow-btn');
+        btn.textContent = slowModeOn ? '🐢 Slow Mode ON (3s delay)' : '🐢 Slow Mode OFF';
+        btn.style.background = slowModeOn ? '#ef4444' : '#22c55e';
+        console.log('[REPRO] Slow Mode', slowModeOn ? 'ENABLED — Pendo API calls will take 3s' : 'DISABLED');
     }
 
     // ── Debug overlay ──────────────────────────────────────────

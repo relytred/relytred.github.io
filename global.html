@@ -167,7 +167,7 @@
 
         function testLocation() {
             console.log('im locating');
-            pendo.location.setUrl('https://relytred.github.io/fakeLocation');
+            blobbo.location.setUrl('https://relytred.github.io/fakeLocation');
         }
 
         // Define a custom element with shadow DOM
@@ -310,7 +310,8 @@
             v=['initialize','identify','updateOptions','pageLoad','track'];for(w=0,x=v.length;w<x;++w)(function(m){
                 o[m]=o[m]||function(){o._q[m===v[0]?'unshift':'push']([m].concat([].slice.call(arguments,0)));};})(v[w]);
                 y=e.createElement(n);y.async=!0;y.src='https://cdn.pendo-atlas.pendo-dev.com/agent/static/'+apiKey+'/pendo.js';
-                z=e.getElementsByTagName(n)[0];z.parentNode.insertBefore(y,z);})(window,document,'script','pendo');
+                y.setAttribute('data-pendo-global-key','blobbo');
+                z=e.getElementsByTagName(n)[0];z.parentNode.insertBefore(y,z);})(window,document,'script','blobbo');
         })('bc842892-890f-45bc-4104-bb08da92ddb4');
 
         function saveSession(visitorId, accountId, expiryHours) {
@@ -338,7 +339,7 @@
         }
 
         function activateSession(visitorId, accountId, expiresAt) {
-            pendo.initialize({
+            blobbo.initialize({
                 visitor: { id: visitorId },
                 account: { id: accountId || 'no-account' }
             });

@@ -280,6 +280,12 @@
             status.textContent = 'Waiting for pendo::ready…';
             status.className = 'dl-status waiting';
 
+            const ERROR_REASONS = {
+                missingToken: 'Agent rejected: missing token',
+                appIdMismatch: 'Agent rejected: publicAppId mismatch',
+                installTypeMismatch: 'Agent rejected: install type mismatch',
+            };
+
             function listener(msg) {
                 if (msg.data.type === 'pendo::ready') {
                     appWindow.postMessage({ type: 'pendo-designer-launch::launch', token }, '*');
@@ -288,6 +294,11 @@
                     window.removeEventListener('message', listener);
                     status.textContent = 'Designer launched successfully';
                     status.className = 'dl-status launched';
+                } else if (msg.data.type === 'pendo-designer-launch::error') {
+                    window.removeEventListener('message', listener);
+                    const reason = msg.data.reason;
+                    status.textContent = ERROR_REASONS[reason] || `Agent rejected: ${reason}`;
+                    status.className = 'dl-status error';
                 }
             }
 

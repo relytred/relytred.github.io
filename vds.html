@@ -262,48 +262,38 @@
 
             if (!url) { alert('Target URL is required'); return; }
 
+            const targetOrigin = new URL(url).origin;
+
             const token = {
                 type: 'guide',
-                idForApp: appId || undefined,
                 guideId: guideId || undefined,
                 stepId: stepId || undefined,
-                timestamp: Date.now(),
-                host: window.location.origin,
+                idForApp: appId || undefined,
+                host: targetOrigin,
                 target: 'latest',
+                timestamp: Date.now(),
+                disableFetchAgentAPIKey: true,
+                keepUrlToken: false,
+                sidebarDesigner: false,
             };
 
-            if (window.designerLaunchListener) {
-                window.removeEventListener('message', window.designerLaunchListener);
-            }
+            const encoded = encodeURIComponent(btoa(JSON.stringify(token)));
+            const sep = url.includes('?') ? '&' : '?';
+            const launchUrl = url + sep + 'pendo-designer=' + encoded;
 
-            const appWindow = window.open(url, '_blank');
-            status.textContent = 'Waiting for pendo::ready…';
+            status.textContent = 'Opening with URL token…';
             status.className = 'dl-status waiting';
 
-            const ERROR_REASONS = {
-                missingToken: 'Agent rejected: missing token',
-                appIdMismatch: 'Agent rejected: publicAppId mismatch',
-                installTypeMismatch: 'Agent rejected: install type mismatch',
-            };
+            const appWindow = window.open(launchUrl, '_blank');
 
-            function listener(msg) {
-                if (msg.data.type === 'pendo::ready') {
-                    appWindow.postMessage({ type: 'pendo-designer-launch::launch', token }, '*');
-                    status.textContent = 'Token sent — waiting for designer…';
-                } else if (msg.data.type === 'pendo-designer-launch::ready') {
-                    window.removeEventListener('message', listener);
-                    status.textContent = 'Designer launched successfully';
-                    status.className = 'dl-status launched';
-                } else if (msg.data.type === 'pendo-designer-launch::error') {
-                    window.removeEventListener('message', listener);
-                    const reason = msg.data.reason;
-                    status.textContent = ERROR_REASONS[reason] || `Agent rejected: ${reason}`;
-                    status.className = 'dl-status error';
-                }
+            if (!appWindow) {
+                status.textContent = 'Popup blocked — allow popups and retry';
+                status.className = 'dl-status error';
+                return;
             }
 
-            window.designerLaunchListener = listener;
-            window.addEventListener('message', listener);
+            status.textContent = 'Launched — designer should load via URL token';
+            status.className = 'dl-status launched';
         }
 
         // Define a custom element with shadow DOM

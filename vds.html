@@ -154,6 +154,89 @@
         }
 
         .clear-session-btn:hover { border-color: #e74c3c; color: #e74c3c; }
+
+        /* ── Designer launch panel ────────────────────────────── */
+        .designer-launch-panel {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px 24px 16px;
+            margin: 20px 10%;
+            font-family: Arial, sans-serif;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        }
+
+        .designer-launch-panel h3 {
+            margin: 0 0 16px;
+            font-size: 15px;
+            color: #333;
+            letter-spacing: 0.01em;
+        }
+
+        .dl-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px 20px;
+        }
+
+        .dl-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .dl-group.full-width { grid-column: 1 / -1; }
+
+        .dl-group label {
+            font-size: 12px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .dl-group input {
+            padding: 8px 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 13px;
+            font-family: monospace;
+            box-sizing: border-box;
+        }
+
+        .dl-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .dl-footer {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 14px;
+        }
+
+        .dl-launch-btn {
+            background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 9px 22px;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.15s;
+        }
+
+        .dl-launch-btn:hover { transform: translateY(-1px); }
+
+        .dl-status {
+            font-size: 12px;
+            color: #888;
+            font-style: italic;
+        }
+
+        .dl-status.waiting { color: #f0a500; }
+        .dl-status.launched { color: #27ae60; }
+        .dl-status.error { color: #e74c3c; }
     </style>
     <script>
         function addAlert() {
@@ -168,6 +251,48 @@
         function testLocation() {
             console.log('im locating');
             pendo.location.setUrl('https://relytred.github.io/fakeLocation');
+        }
+
+        function launchDesigner() {
+            const url     = document.getElementById('dlUrl').value.trim();
+            const appId   = document.getElementById('dlAppId').value.trim();
+            const guideId = document.getElementById('dlGuideId').value.trim();
+            const stepId  = document.getElementById('dlStepId').value.trim();
+            const status  = document.getElementById('dlStatus');
+
+            if (!url) { alert('Target URL is required'); return; }
+
+            const token = {
+                type: 'guide',
+                idForApp: appId || undefined,
+                guideId: guideId || undefined,
+                stepId: stepId || undefined,
+                timestamp: Date.now(),
+                host: window.location.origin,
+                target: 'latest',
+            };
+
+            if (window.designerLaunchListener) {
+                window.removeEventListener('message', window.designerLaunchListener);
+            }
+
+            const appWindow = window.open(url, '_blank');
+            status.textContent = 'Waiting for pendo::ready…';
+            status.className = 'dl-status waiting';
+
+            function listener(msg) {
+                if (msg.data.type === 'pendo::ready') {
+                    appWindow.postMessage({ type: 'pendo-designer-launch::launch', token }, '*');
+                    status.textContent = 'Token sent — waiting for designer…';
+                } else if (msg.data.type === 'pendo-designer-launch::ready') {
+                    window.removeEventListener('message', listener);
+                    status.textContent = 'Designer launched successfully';
+                    status.className = 'dl-status launched';
+                }
+            }
+
+            window.designerLaunchListener = listener;
+            window.addEventListener('message', listener);
         }
 
         // Define a custom element with shadow DOM
@@ -420,6 +545,33 @@
         <button class='--alert-button' onclick="addAlert()">Add alert! </button>
         <button class='button' onclick="testLocation()">Locate me </button>
         
+        <!-- Designer Launch Panel -->
+        <div class="designer-launch-panel">
+            <h3>Launch Designer</h3>
+            <div class="dl-grid">
+                <div class="dl-group full-width">
+                    <label for="dlUrl">Target URL</label>
+                    <input type="url" id="dlUrl" placeholder="https://yourapp.com/page">
+                </div>
+                <div class="dl-group">
+                    <label for="dlAppId">App ID</label>
+                    <input type="text" id="dlAppId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx">
+                </div>
+                <div class="dl-group">
+                    <label for="dlGuideId">Guide ID</label>
+                    <input type="text" id="dlGuideId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx">
+                </div>
+                <div class="dl-group">
+                    <label for="dlStepId">Step ID</label>
+                    <input type="text" id="dlStepId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx">
+                </div>
+            </div>
+            <div class="dl-footer">
+                <button class="dl-launch-btn" onclick="launchDesigner()">Launch</button>
+                <span id="dlStatus" class="dl-status"></span>
+            </div>
+        </div>
+
         <!-- Shadow DOM Section -->
         <shadow-section></shadow-section>
         

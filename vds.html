@@ -99,6 +99,26 @@
 
         .required { color: #e74c3c; }
 
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .checkbox-row input {
+            width: auto;
+            padding: 0;
+            border: none;
+            margin: 0;
+            cursor: pointer;
+        }
+
+        .checkbox-row label {
+            margin-bottom: 0;
+            font-weight: normal;
+            cursor: pointer;
+        }
+
         .expiry-hint {
             font-size: 12px;
             color: #999;
@@ -506,9 +526,9 @@
                 z=e.getElementsByTagName(n)[0];z.parentNode.insertBefore(y,z);})(window,document,'script','pendo');
         })('bc842892-890f-45bc-4104-bb08da92ddb4');
 
-        function saveSession(visitorId, accountId, expiryHours) {
+        function saveSession(visitorId, accountId, expiryHours, doNotTrack) {
             const expiresAt = Date.now() + expiryHours * 60 * 60 * 1000;
-            localStorage.setItem(STORAGE_KEY, JSON.stringify({ visitorId, accountId, expiresAt }));
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ visitorId, accountId, expiresAt, doNotTrack }));
         }
 
         function loadSession() {
@@ -530,18 +550,23 @@
             return expiresAt ? new Date(expiresAt).toLocaleString() : 'this session only';
         }
 
-        function activateSession(visitorId, accountId, expiresAt) {
-            pendo.initialize({
+        function activateSession(visitorId, accountId, expiresAt, doNotTrack) {
+            const options = {
                 visitor: { id: visitorId },
                 account: { id: accountId || 'no-account' }
-            });
+            };
+
+            // The agent replaces visitor/account with the cookieless sentinel when this is set.
+            if (doNotTrack) options.doNotTrackGuides = true;
+
+            pendo.initialize(options);
 
             document.getElementById('idOverlay').classList.add('hidden');
 
             const banner = document.getElementById('sessionBanner');
             banner.classList.add('visible');
-            banner.querySelector('#bannerVisitor').textContent = visitorId;
-            banner.querySelector('#bannerAccount').textContent = accountId || 'none';
+            banner.querySelector('#bannerVisitor').textContent = doNotTrack ? '__cookieless_visitor__' : visitorId;
+            banner.querySelector('#bannerAccount').textContent = doNotTrack ? 'none (DNT)' : (accountId || 'none');
             banner.querySelector('#bannerExpiry').textContent = formatExpiry(expiresAt);
         }
 
@@ -557,19 +582,21 @@
                 const visitorId = document.getElementById('visitorId').value.trim();
                 const accountId = document.getElementById('accountId').value.trim();
                 const expiryHours = Math.max(0, Math.min(720, parseInt(document.getElementById('expiryHours').value, 10) || 0));
+                const doNotTrack = document.getElementById('doNotTrack').checked;
 
                 if (!visitorId) { alert('Visitor ID is required'); return; }
 
                 const expiresAt = expiryHours > 0 ? Date.now() + expiryHours * 60 * 60 * 1000 : null;
-                if (expiryHours > 0) saveSession(visitorId, accountId, expiryHours);
-                activateSession(visitorId, accountId, expiresAt);
+                if (expiryHours > 0) saveSession(visitorId, accountId, expiryHours, doNotTrack);
+                activateSession(visitorId, accountId, expiresAt, doNotTrack);
             });
 
             document.getElementById('clearSessionBtn').addEventListener('click', clearSession);
 
             const session = loadSession();
             if (session) {
-                activateSession(session.visitorId, session.accountId, session.expiresAt);
+                document.getElementById('doNotTrack').checked = !!session.doNotTrack;
+                activateSession(session.visitorId, session.accountId, session.expiresAt, session.doNotTrack);
             }
         });
     </script>
@@ -591,6 +618,13 @@
                         <label for="expiryHours">Session expires after</label>
                         <input type="number" id="expiryHours" name="expiryHours" min="0" max="720" value="24" placeholder="24">
                         <div class="expiry-hint">hours — 0 to skip saving, 1 – 720 to persist</div>
+                    </div>
+                    <div class="form-group">
+                        <div class="checkbox-row">
+                            <input type="checkbox" id="doNotTrack" name="doNotTrack">
+                            <label for="doNotTrack">Do not track</label>
+                        </div>
+                        <div class="expiry-hint">sets doNotTrackGuides — cookieless visitor, guide analytics only</div>
                     </div>
                     <button type="submit" class="submit-btn">Submit</button>
                 </form>

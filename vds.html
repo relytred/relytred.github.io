@@ -257,6 +257,29 @@
         .dl-status.waiting { color: #f0a500; }
         .dl-status.launched { color: #27ae60; }
         .dl-status.error { color: #e74c3c; }
+
+        /* ── Simple form ──────────────────────────────────────── */
+        .dl-group select,
+        .dl-group textarea {
+            padding: 8px 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 13px;
+            box-sizing: border-box;
+        }
+
+        .dl-group textarea { resize: vertical; }
+
+        /* The designer panel's monospace fields suit IDs, not names and messages. */
+        .simple-form input,
+        .simple-form select,
+        .simple-form textarea { font-family: Arial, sans-serif; }
+
+        .dl-group select:focus,
+        .dl-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
     </style>
     <script>
         function addAlert() {
@@ -593,6 +616,16 @@
 
             document.getElementById('clearSessionBtn').addEventListener('click', clearSession);
 
+            document.getElementById('simpleForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const values = Object.fromEntries(new FormData(e.target).entries());
+                const status = document.getElementById('sfStatus');
+
+                console.log('simple form submit', values);
+                status.textContent = 'Submitted ' + JSON.stringify(values);
+                status.className = 'dl-status launched';
+            });
+
             const session = loadSession();
             if (session) {
                 document.getElementById('doNotTrack').checked = !!session.doNotTrack;
@@ -643,6 +676,7 @@
         <div class="subheader">
             <button>Right align</button>
             <button onclick="setTimeout(() => window.open('/experiments.html', '_blank'), 5000)">Go to experiments</button>
+            <button onclick="window.open('/brackets.html', '_blank')">Go to brackets</button>
         </div>
         <button class='--alert-button' onclick="addAlert()">Add alert! </button>
         <button class='button' onclick="testLocation()">Locate me </button>
@@ -673,6 +707,39 @@
                 <button class="dl-launch-btn" onclick="launchDesignerPostMessage()" style="background:#e67e22;">Launch (postMessage)</button>
                 <span id="dlStatus" class="dl-status"></span>
             </div>
+        </div>
+
+        <!-- Simple Form -->
+        <div class="designer-launch-panel">
+            <h3>Simple Form</h3>
+            <form id="simpleForm" class="simple-form">
+                <div class="dl-grid">
+                    <div class="dl-group">
+                        <label for="sfName">Name</label>
+                        <input type="text" id="sfName" name="name" placeholder="Ada Lovelace">
+                    </div>
+                    <div class="dl-group">
+                        <label for="sfEmail">Email</label>
+                        <input type="email" id="sfEmail" name="email" placeholder="ada@example.com">
+                    </div>
+                    <div class="dl-group">
+                        <label for="sfTopic">Topic</label>
+                        <select id="sfTopic" name="topic">
+                            <option value="feedback">Feedback</option>
+                            <option value="bug">Bug report</option>
+                            <option value="feature">Feature request</option>
+                        </select>
+                    </div>
+                    <div class="dl-group">
+                        <label for="sfMessage">Message</label>
+                        <textarea id="sfMessage" name="message" rows="2" placeholder="Say something"></textarea>
+                    </div>
+                </div>
+                <div class="dl-footer">
+                    <button type="submit" class="dl-launch-btn">Submit</button>
+                    <span id="sfStatus" class="dl-status"></span>
+                </div>
+            </form>
         </div>
 
         <!-- Pendo IO iframe -->

@@ -1,0 +1,651 @@
+<html>
+    <head>
+        <title>BRACKET TOWN</title>
+        <meta name="referrer" content="no-referrer" />
+    </head>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            font-family: Arial, sans-serif;
+        }
+
+        .title {
+            width: 100%;
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+            margin-top: 10px;
+            margin-bottom: 20px;
+        }
+
+        /* ── Controls ─────────────────────────────────────────── */
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            margin: 0 16px 16px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        }
+
+        .controls label {
+            font-size: 12px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .controls select {
+            padding: 7px 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 13px;
+        }
+
+        .ctrl-btn {
+            background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.15s;
+        }
+
+        .ctrl-btn:hover { transform: translateY(-1px); }
+
+        .ctrl-btn.secondary {
+            background: none;
+            border: 1px solid #ccc;
+            color: #666;
+            font-weight: normal;
+        }
+
+        .ctrl-btn.secondary:hover { border-color: #667eea; color: #667eea; }
+
+        .zoom-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: auto;
+        }
+
+        .zoom-level {
+            font-size: 12px;
+            color: #888;
+            min-width: 42px;
+            text-align: center;
+        }
+
+        .status {
+            width: 100%;
+            font-size: 12px;
+            color: #888;
+            font-style: italic;
+            min-height: 16px;
+        }
+
+        .status.error { color: #e74c3c; font-style: normal; }
+        .status.ok { color: #27ae60; }
+
+        .hint {
+            margin: 0 16px 8px;
+            font-size: 12px;
+            color: #999;
+        }
+
+        /* ── Bracket board ────────────────────────────────────── */
+        .board-scroll {
+            margin: 0 16px 40px;
+            overflow: auto;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+
+        .board-zoom { transform-origin: top left; }
+
+        .board {
+            background: #7d9e68;
+            padding: 24px;
+            box-sizing: content-box;
+        }
+
+        .board-title,
+        .board-footer {
+            display: block;
+            width: 100%;
+            background: none;
+            border: none;
+            color: white;
+            text-align: center;
+            font-family: Arial, sans-serif;
+            font-weight: bold;
+            box-sizing: border-box;
+            padding: 4px;
+        }
+
+        .board-title { font-size: 26px; margin-bottom: 16px; }
+        .board-footer { font-size: 15px; margin-top: 16px; }
+
+        .board-title::placeholder,
+        .board-footer::placeholder { color: rgba(255,255,255,0.6); }
+
+        .board-title:focus,
+        .board-footer:focus {
+            outline: none;
+            background: rgba(255,255,255,0.15);
+            border-radius: 4px;
+        }
+
+        .bracket-area { position: relative; }
+
+        .bracket-lines {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+
+        .slot {
+            position: absolute;
+            background: white;
+            border: none;
+            border-radius: 2px;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            color: #333;
+            padding: 0 6px;
+            box-sizing: border-box;
+        }
+
+        .slot:focus {
+            outline: 2px solid #33513f;
+            outline-offset: 0;
+        }
+
+        .slot.champion {
+            font-size: 15px;
+            font-weight: bold;
+            text-align: center;
+            border: 3px solid #7d9e68;
+            outline: 2px solid white;
+            border-radius: 3px;
+        }
+    </style>
+    <script>
+        const STORAGE_KEY = 'pendo_session';
+
+        (function(apiKey){
+            (function(p,e,n,d,o){var v,w,x,y,z;o=p[d]=p[d]||{};o._q=o._q||[];
+            v=['initialize','identify','updateOptions','pageLoad','track'];for(w=0,x=v.length;w<x;++w)(function(m){
+                o[m]=o[m]||function(){o._q[m===v[0]?'unshift':'push']([m].concat([].slice.call(arguments,0)));};})(v[w]);
+                y=e.createElement(n);y.async=!0;y.src='https://cdn.pendo-atlas.pendo-dev.com/agent/static/'+apiKey+'/pendo.js';
+                z=e.getElementsByTagName(n)[0];z.parentNode.insertBefore(y,z);})(window,document,'script','pendo');
+        })('bc842892-890f-45bc-4104-bb08da92ddb4');
+
+        // Reuses whatever session vds.html stored, so the two pages identify as the same visitor.
+        (function initPendo() {
+            let session = null;
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                const parsed = raw && JSON.parse(raw);
+                if (parsed && Date.now() < parsed.expiresAt) session = parsed;
+            } catch {}
+
+            pendo.initialize({
+                visitor: { id: session ? session.visitorId : 'bracket-anon' },
+                account: { id: (session && session.accountId) || 'no-account' }
+            });
+        })();
+    </script>
+    <script>
+        const SIZES = [2, 4, 8, 16, 32, 64, 128, 256];
+        const SLOT_W = 132;
+        const SLOT_H = 28;
+        const V_GAP = 8;
+        const COL_GAP = 26;
+        const CENTER_GAP = 36;
+        const QUAD_GAP = 26;
+        const CHAMP_W = 184;
+        const PITCH = SLOT_H + V_GAP;
+        const SVG_NS = 'http://www.w3.org/2000/svg';
+
+        const state = {
+            title: '',
+            footer: '',
+            size: 16,
+            rounds: emptyRounds(16)
+        };
+
+        let zoom = 1;
+
+        function log2(n) {
+            return Math.round(Math.log(n) / Math.LN2);
+        }
+
+        function isValidSize(n) {
+            return SIZES.indexOf(n) !== -1;
+        }
+
+        function emptyRounds(size) {
+            const rounds = [];
+            for (let level = 0; level <= log2(size); level++) {
+                rounds.push(new Array(size >> level).fill(''));
+            }
+            return rounds;
+        }
+
+        function setStatus(message, kind) {
+            const el = document.getElementById('status');
+            el.textContent = message || '';
+            el.className = 'status' + (kind ? ' ' + kind : '');
+        }
+
+        /* ── Geometry ─────────────────────────────────────────── */
+        // Both halves of a mirrored bracket span the full height, so each half is laid
+        // out as its own bracket over size / 2 entries and the champion sits between them.
+        function layout(size) {
+            const half = size / 2;
+            const levels = log2(half) + 1;
+            const halfWidth = levels * SLOT_W + (levels - 1) * COL_GAP;
+            return {
+                half: half,
+                levels: levels,
+                height: half * PITCH + QUAD_GAP,
+                width: halfWidth * 2 + CENTER_GAP * 2 + CHAMP_W,
+                halfWidth: halfWidth
+            };
+        }
+
+        // Everything below the quadrant divider is pushed down by QUAD_GAP. A column with a
+        // single slot straddles the divider, so it takes half the gap and stays centered.
+        function slotY(geo, level, index) {
+            const count = geo.half >> level;
+            const gap = count === 1 ? QUAD_GAP / 2 : (index >= count / 2 ? QUAD_GAP : 0);
+            return Math.pow(2, level) * (index + 0.5) * PITCH + gap;
+        }
+
+        function slotX(geo, level, side) {
+            const offset = level * (SLOT_W + COL_GAP);
+            return side === 'left' ? offset : geo.width - SLOT_W - offset;
+        }
+
+        // Index within state.rounds[level] for a slot at position `index` of one half.
+        function globalIndex(size, level, index, side) {
+            return side === 'left' ? index : (size >> (level + 1)) + index;
+        }
+
+        /* ── Rendering ────────────────────────────────────────── */
+        function render() {
+            const size = state.size;
+            const geo = layout(size);
+            const area = document.getElementById('bracketArea');
+            const board = document.getElementById('board');
+
+            area.innerHTML = '';
+            area.style.width = geo.width + 'px';
+            area.style.height = geo.height + 'px';
+            board.style.width = geo.width + 'px';
+
+            const svg = document.createElementNS(SVG_NS, 'svg');
+            svg.setAttribute('class', 'bracket-lines');
+            svg.setAttribute('width', geo.width);
+            svg.setAttribute('height', geo.height);
+            area.appendChild(svg);
+
+            let path = '';
+
+            ['left', 'right'].forEach(function(side) {
+                for (let level = 0; level < geo.levels; level++) {
+                    const count = geo.half >> level;
+                    const x = slotX(geo, level, side);
+
+                    for (let i = 0; i < count; i++) {
+                        area.appendChild(makeSlot(level, globalIndex(size, level, i, side), x, slotY(geo, level, i)));
+                    }
+
+                    path += connectors(geo, level, side);
+                }
+            });
+
+            area.appendChild(makeChampion(geo));
+
+            const line = document.createElementNS(SVG_NS, 'path');
+            line.setAttribute('d', path);
+            line.setAttribute('stroke', 'white');
+            line.setAttribute('stroke-width', '2');
+            line.setAttribute('fill', 'none');
+            svg.appendChild(line);
+
+            const divider = dividers(geo);
+            if (divider) {
+                const dashed = document.createElementNS(SVG_NS, 'path');
+                dashed.setAttribute('d', divider);
+                dashed.setAttribute('stroke', 'rgba(255,255,255,0.55)');
+                dashed.setAttribute('stroke-width', '2');
+                dashed.setAttribute('stroke-dasharray', '8 6');
+                dashed.setAttribute('fill', 'none');
+                svg.appendChild(dashed);
+            }
+
+            applyZoom();
+        }
+
+        // Lines from one column into the next, or into the champion for the last column.
+        function connectors(geo, level, side) {
+            const dir = side === 'left' ? 1 : -1;
+            const edge = slotX(geo, level, side) + (side === 'left' ? SLOT_W : 0);
+            let path = '';
+
+            if (level === geo.levels - 1) {
+                const champEdge = (geo.width - CHAMP_W) / 2 + (side === 'left' ? 0 : CHAMP_W);
+                return 'M' + edge + ' ' + (geo.height / 2) + 'H' + champEdge;
+            }
+
+            const parentEdge = slotX(geo, level + 1, side) + (side === 'left' ? 0 : SLOT_W);
+
+            for (let i = 0; i < geo.half >> (level + 1); i++) {
+                const top = slotY(geo, level, i * 2);
+                const bottom = slotY(geo, level, i * 2 + 1);
+                const mid = edge + dir * (COL_GAP / 2);
+
+                path += 'M' + edge + ' ' + top + 'H' + mid + 'V' + bottom + 'H' + edge;
+                path += 'M' + mid + ' ' + slotY(geo, level + 1, i) + 'H' + parentEdge;
+            }
+
+            return path;
+        }
+
+        // Splits each side into a top and bottom quadrant. The line stops short of the column
+        // feeding the champion, since that column sits on the divider itself.
+        function dividers(geo) {
+            if (geo.levels < 2) return '';
+
+            const y = geo.height / 2;
+            const reach = (geo.levels - 2) * (SLOT_W + COL_GAP) + SLOT_W;
+
+            return 'M0 ' + y + 'H' + reach + 'M' + (geo.width - reach) + ' ' + y + 'H' + geo.width;
+        }
+
+        function makeSlot(level, index, x, centerY) {
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'slot';
+            input.value = state.rounds[level][index];
+            input.dataset.level = level;
+            input.dataset.index = index;
+            input.title = 'Double-click to advance to the next round';
+            input.style.left = x + 'px';
+            input.style.top = (centerY - SLOT_H / 2) + 'px';
+            input.style.width = SLOT_W + 'px';
+            input.style.height = SLOT_H + 'px';
+            return input;
+        }
+
+        function makeChampion(geo) {
+            const level = state.rounds.length - 1;
+            const input = makeSlot(level, 0, (geo.width - CHAMP_W) / 2, geo.height / 2);
+            input.className = 'slot champion';
+            input.title = 'Champion';
+            input.style.width = CHAMP_W + 'px';
+            input.style.height = (SLOT_H + 8) + 'px';
+            input.style.top = (geo.height / 2 - (SLOT_H + 8) / 2) + 'px';
+            return input;
+        }
+
+        function applyZoom() {
+            const board = document.getElementById('board');
+            const wrapper = document.getElementById('boardZoom');
+            wrapper.style.transform = 'scale(' + zoom + ')';
+            wrapper.style.width = (board.offsetWidth * zoom) + 'px';
+            wrapper.style.height = (board.offsetHeight * zoom) + 'px';
+            document.getElementById('zoomLevel').textContent = Math.round(zoom * 100) + '%';
+        }
+
+        function setZoom(next) {
+            zoom = Math.max(0.1, Math.min(2, next));
+            applyZoom();
+        }
+
+        function zoomToFit() {
+            const available = document.getElementById('boardScroll').clientWidth;
+            setZoom(available / document.getElementById('board').offsetWidth);
+        }
+
+        // Shrinks a too-wide bracket to fit, but never magnifies a small one.
+        function autoFit() {
+            const available = document.getElementById('boardScroll').clientWidth;
+            setZoom(Math.min(1, available / document.getElementById('board').offsetWidth));
+        }
+
+        /* ── Actions ──────────────────────────────────────────── */
+        function resize(size) {
+            const previous = state.rounds[0];
+            state.size = size;
+            state.rounds = emptyRounds(size);
+
+            for (let i = 0; i < Math.min(previous.length, size); i++) {
+                state.rounds[0][i] = previous[i];
+            }
+
+            render();
+            autoFit();
+            setStatus(size + ' entries — later rounds were cleared');
+        }
+
+        function randomize() {
+            const entries = state.rounds[0];
+
+            if (entries.every(function(value) { return !value.trim(); })) {
+                setStatus('Nothing to randomize — fill in the first round first', 'error');
+                return;
+            }
+
+            for (let i = entries.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                const swap = entries[i];
+                entries[i] = entries[j];
+                entries[j] = swap;
+            }
+
+            for (let level = 1; level < state.rounds.length; level++) {
+                state.rounds[level].fill('');
+            }
+
+            render();
+            setStatus('Shuffled the first round and cleared every round after it', 'ok');
+        }
+
+        function clearAll() {
+            state.rounds = emptyRounds(state.size);
+            render();
+            setStatus('Cleared');
+        }
+
+        function slugify(text) {
+            return (text || 'bracket').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'bracket';
+        }
+
+        function download() {
+            const payload = {
+                version: 1,
+                title: state.title,
+                footer: state.footer,
+                size: state.size,
+                rounds: state.rounds
+            };
+
+            const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }));
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = slugify(state.title) + '.json';
+            link.click();
+            URL.revokeObjectURL(url);
+
+            setStatus('Downloaded ' + link.download, 'ok');
+        }
+
+        // Returns { rounds, size } or throws with a message worth showing the user.
+        function parseBracket(raw) {
+            const data = JSON.parse(raw);
+
+            if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('File is not a bracket object');
+            if (!Array.isArray(data.rounds)) throw new Error('Missing a "rounds" array');
+
+            const size = data.size === undefined ? data.rounds[0] && data.rounds[0].length : data.size;
+
+            if (!isValidSize(size)) throw new Error('Entry count must be one of ' + SIZES.join(', ') + ' (got ' + size + ')');
+            if (data.rounds.length !== log2(size) + 1) {
+                throw new Error('A ' + size + '-entry bracket needs ' + (log2(size) + 1) + ' rounds, found ' + data.rounds.length);
+            }
+
+            const rounds = data.rounds.map(function(round, level) {
+                const expected = size >> level;
+
+                if (!Array.isArray(round) || round.length !== expected) {
+                    throw new Error('Round ' + (level + 1) + ' should have ' + expected + ' entries, found ' + (Array.isArray(round) ? round.length : 'none'));
+                }
+
+                return round.map(function(entry) {
+                    if (entry === null || entry === undefined) return '';
+                    if (typeof entry !== 'string') throw new Error('Round ' + (level + 1) + ' contains a non-text entry');
+                    return entry;
+                });
+            });
+
+            return {
+                size: size,
+                rounds: rounds,
+                title: typeof data.title === 'string' ? data.title : '',
+                footer: typeof data.footer === 'string' ? data.footer : ''
+            };
+        }
+
+        function upload(file) {
+            const reader = new FileReader();
+
+            reader.onload = function() {
+                let bracket;
+
+                try {
+                    bracket = parseBracket(reader.result);
+                } catch (e) {
+                    setStatus('Could not load ' + file.name + ': ' + e.message, 'error');
+                    return;
+                }
+
+                state.size = bracket.size;
+                state.rounds = bracket.rounds;
+                state.title = bracket.title;
+                state.footer = bracket.footer;
+
+                document.getElementById('entryCount').value = String(bracket.size);
+                document.getElementById('boardTitle').value = bracket.title;
+                document.getElementById('boardFooter').value = bracket.footer;
+
+                render();
+                autoFit();
+                setStatus('Loaded ' + file.name + ' — ' + bracket.size + ' entries', 'ok');
+            };
+
+            reader.onerror = function() { setStatus('Could not read ' + file.name, 'error'); };
+            reader.readAsText(file);
+        }
+
+        /* ── Wiring ───────────────────────────────────────────── */
+        document.addEventListener('DOMContentLoaded', function() {
+            const select = document.getElementById('entryCount');
+            SIZES.forEach(function(size) {
+                const option = document.createElement('option');
+                option.value = String(size);
+                option.textContent = size + ' entries';
+                select.appendChild(option);
+            });
+            select.value = String(state.size);
+            select.addEventListener('change', function() { resize(parseInt(select.value, 10)); });
+
+            const area = document.getElementById('bracketArea');
+
+            area.addEventListener('input', function(e) {
+                const slot = e.target.closest('.slot');
+                if (slot) state.rounds[slot.dataset.level][slot.dataset.index] = slot.value;
+            });
+
+            area.addEventListener('dblclick', function(e) {
+                const slot = e.target.closest('.slot');
+                if (!slot || !slot.value.trim()) return;
+
+                const level = Number(slot.dataset.level) + 1;
+                if (level >= state.rounds.length) return;
+
+                const index = Math.floor(Number(slot.dataset.index) / 2);
+                state.rounds[level][index] = slot.value;
+                area.querySelector('[data-level="' + level + '"][data-index="' + index + '"]').value = slot.value;
+            });
+
+            document.getElementById('boardTitle').addEventListener('input', function(e) { state.title = e.target.value; });
+            document.getElementById('boardFooter').addEventListener('input', function(e) { state.footer = e.target.value; });
+
+            document.getElementById('randomizeBtn').addEventListener('click', randomize);
+            document.getElementById('clearBtn').addEventListener('click', clearAll);
+            document.getElementById('downloadBtn').addEventListener('click', download);
+
+            const fileInput = document.getElementById('fileInput');
+            document.getElementById('uploadBtn').addEventListener('click', function() { fileInput.click(); });
+            fileInput.addEventListener('change', function() {
+                if (fileInput.files[0]) upload(fileInput.files[0]);
+                fileInput.value = '';
+            });
+
+            document.getElementById('zoomInBtn').addEventListener('click', function() { setZoom(zoom + 0.1); });
+            document.getElementById('zoomOutBtn').addEventListener('click', function() { setZoom(zoom - 0.1); });
+            document.getElementById('zoomFitBtn').addEventListener('click', zoomToFit);
+
+            render();
+            autoFit();
+        });
+    </script>
+    <body>
+        <div class="title">Bracket builder</div>
+
+        <div class="controls">
+            <label for="entryCount">Entries</label>
+            <select id="entryCount"></select>
+
+            <button class="ctrl-btn" id="randomizeBtn">Randomize</button>
+            <button class="ctrl-btn" id="downloadBtn">Download JSON</button>
+            <button class="ctrl-btn" id="uploadBtn">Upload JSON</button>
+            <button class="ctrl-btn secondary" id="clearBtn">Clear</button>
+            <input type="file" id="fileInput" accept="application/json,.json" hidden>
+
+            <div class="zoom-group">
+                <button class="ctrl-btn secondary" id="zoomOutBtn">&minus;</button>
+                <span class="zoom-level" id="zoomLevel">100%</span>
+                <button class="ctrl-btn secondary" id="zoomInBtn">+</button>
+                <button class="ctrl-btn secondary" id="zoomFitBtn">Fit</button>
+            </div>
+
+            <div class="status" id="status"></div>
+        </div>
+
+        <div class="hint">Type into any box. Double-click a filled box to advance it to the next round.</div>
+
+        <div class="board-scroll" id="boardScroll">
+            <div class="board-zoom" id="boardZoom">
+                <div class="board" id="board">
+                    <input type="text" class="board-title" id="boardTitle" placeholder="Add Tournament Title">
+                    <div class="bracket-area" id="bracketArea"></div>
+                    <input type="text" class="board-footer" id="boardFooter" placeholder="Tournament Date Or Other Information">
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer" />
+    <title>TOP LAYER TOWN</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f4f5f7;
+            color: #1a2332;
+            padding-bottom: 210px;
+        }
+
+        .title {
+            width: 100%;
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+            margin-top: 10px;
+            margin-bottom: 4px;
+        }
+        .subtitle { text-align: center; font-size: 13px; color: #5e6c84; margin-bottom: 24px; }
+
+        .panels { display: flex; flex-wrap: wrap; gap: 16px; padding: 0 16px; align-items: flex-start; }
+        .panel {
+            background: #fff;
+            border: 1px solid #dfe1e6;
+            border-radius: 6px;
+            padding: 16px;
+            flex: 1 1 320px;
+        }
+        .panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .5px; color: #5e6c84; margin: 0 0 4px; }
+        .panel p { font-size: 12px; color: #8993a4; margin: 0 0 12px; line-height: 1.5; }
+        .panel .row { display: flex; flex-wrap: wrap; gap: 8px; }
+
+        button {
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid #dfe1e6;
+            background: #fff;
+            color: #0052cc;
+        }
+        button:hover { background: #f4f5f7; }
+        button.primary { background: #0052cc; color: #fff; border-color: #0052cc; }
+        button.danger { background: #de350b; color: #fff; border-color: #de350b; }
+
+        input[type="text"] {
+            border: 1px solid #dfe1e6;
+            border-radius: 4px;
+            padding: 7px 10px;
+            font-size: 13px;
+            min-width: 180px;
+        }
+
+        /* ── Competitors ───────────────────────────────────────────
+           Each fills the viewport so it overlaps a centered guide
+           wherever the guide lands. Semi-transparent so you can see
+           what is winning rather than guessing. */
+        .full-bleed {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            max-width: none;
+            max-height: none;
+            border: 0;
+            padding: 0;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 0 1px 3px rgba(0,0,0,.4);
+        }
+        /* Only ever set display for the OPEN state. The UA sheet hides a closed dialog and a
+           closed popover already, and an author display declaration would override that and
+           leak a closed element into layout. */
+        .full-bleed:popover-open,
+        dialog.full-bleed[open] { display: flex; }
+
+        #fs-modal-dialog { background: rgba(16, 61, 145, .72); z-index: 500000; }
+        #fs-plain-dialog { background: rgba(101, 84, 192, .72); z-index: 500001; }
+        #fs-popover-manual { background: rgba(0, 108, 61, .72); }
+        #fs-popover-auto { background: rgba(140, 94, 0, .72); }
+
+        #fs-target {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(191, 38, 0, .8);
+            font-size: 28px;
+            font-weight: bold;
+            color: #fff;
+        }
+        #fs-target.armed { display: flex; }
+
+        #corner-popover {
+            position: fixed;
+            top: 8px;
+            left: 8px;
+            width: 120px;
+            height: 48px;
+            margin: 0;
+            border: 0;
+            padding: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 108, 61, .85);
+            color: #fff;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        #corner-popover:popover-open { display: flex; }
+
+        .close-hint {
+            position: absolute;
+            bottom: 24px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 13px;
+            font-weight: normal;
+        }
+        .close-hint button { font-size: 13px; }
+
+        /* ── Diagnostics ── */
+        #diag {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #1a2332;
+            color: #c5cee0;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 12px;
+            padding: 10px 16px;
+            z-index: 2147483000;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        #diag table { border-collapse: collapse; width: 100%; }
+        #diag td { padding: 2px 8px 2px 0; vertical-align: top; }
+        #diag td.k { color: #8993a4; white-space: nowrap; width: 190px; }
+        #diag .ok { color: #4ade80; }
+        #diag .bad { color: #f87171; }
+        #diag .warn { color: #fbbf24; }
+        #log { margin-top: 6px; border-top: 1px solid #2d3f54; padding-top: 6px; white-space: pre-wrap; line-height: 1.5; }
+    </style>
+</head>
+<body>
+    <div class="title">TOP LAYER TOWN</div>
+    <div class="subtitle">
+        Every control below puts something in the browser's top layer, which no z-index can outrank.
+        Open a guide first, then pick a fight.
+    </div>
+
+    <div class="panels">
+        <div class="panel">
+            <h2>Guide</h2>
+            <p>
+                Auto-display guides show on their own. For an on-demand one, enter its id or name.
+                A guide only reaches the top layer if its payload sets
+                <code>attributes.popover.enabled</code>.
+            </p>
+            <div class="row">
+                <input type="text" id="guide-ref" placeholder="guide id or name" />
+                <button class="primary" onclick="showGuide()">Show guide</button>
+                <button onclick="listGuides()">List active</button>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>Full-screen dialog</h2>
+            <p>
+                <code>showModal()</code> enters the top layer and blocks the rest of the document.
+                That also makes the guide unhittable, so the readout below reports
+                <em>cannot tell</em> &mdash; judge this one by looking at the pixels.
+                The non-modal <code>show()</code> is the control case: same box, normal layer, so a
+                guide at <code>z-index: 300000</code> should still beat it.
+            </p>
+            <div class="row">
+                <button class="primary" onclick="openModalDialog()">showModal() &mdash; full screen</button>
+                <button onclick="openPlainDialog()">show() &mdash; not top layer</button>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>Fullscreen API</h2>
+            <p>
+                <code>requestFullscreen()</code> also lands in the top layer, and hides everything outside
+                the fullscreen element's subtree. The second button asks for fullscreen on the modal dialog,
+                which puts one element in the top layer twice.
+            </p>
+            <div class="row">
+                <button class="primary" onclick="goFullscreen()">Fullscreen a div</button>
+                <button onclick="fullscreenTheDialog()">Fullscreen the modal dialog</button>
+                <button onclick="exitFullscreen()">Exit fullscreen</button>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>Popovers</h2>
+            <p>
+                <code>manual</code> stacks above whatever opened before it. <code>auto</code> additionally
+                closes other <em>auto</em> popovers &mdash; a guide using <code>manual</code> should survive it.
+                The corner popover overlaps nothing, so a guide has no reason to react to it.
+            </p>
+            <div class="row">
+                <button class="primary" onclick="openPopover('fs-popover-manual')">manual &mdash; full screen</button>
+                <button onclick="openPopover('fs-popover-auto')">auto &mdash; full screen</button>
+                <button onclick="openPopover('corner-popover')">manual &mdash; corner</button>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>Hostile host</h2>
+            <p>
+                War mode makes this page re-raise its own popover every time anything else enters the top
+                layer. Whoever wins, the page must settle rather than flicker forever &mdash; watch the
+                re-raise counter below.
+            </p>
+            <div class="row">
+                <button id="war-btn" onclick="toggleWar()">War mode: OFF</button>
+                <button class="danger" onclick="closeEverything()">Close everything</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Top-layer competitors ── -->
+    <dialog id="fs-modal-dialog" class="full-bleed">
+        Modal &lt;dialog&gt; &mdash; top layer
+        <div class="close-hint"><button onclick="document.getElementById('fs-modal-dialog').close()">Close</button></div>
+    </dialog>
+
+    <dialog id="fs-plain-dialog" class="full-bleed">
+        Non-modal &lt;dialog&gt; &mdash; normal layer
+        <div class="close-hint"><button onclick="document.getElementById('fs-plain-dialog').close()">Close</button></div>
+    </dialog>
+
+    <div id="fs-popover-manual" class="full-bleed" popover="manual">
+        popover="manual" &mdash; top layer
+        <div class="close-hint"><button onclick="document.getElementById('fs-popover-manual').hidePopover()">Close</button></div>
+    </div>
+
+    <div id="fs-popover-auto" class="full-bleed" popover="auto">
+        popover="auto" &mdash; top layer
+        <div class="close-hint"><button onclick="document.getElementById('fs-popover-auto').hidePopover()">Close</button></div>
+    </div>
+
+    <div id="corner-popover" popover="manual">no overlap</div>
+
+    <div id="fs-target">Fullscreen element</div>
+
+    <!-- ── Diagnostics ── -->
+    <div id="diag">
+        <table>
+            <tr><td class="k">topmost at guide center</td><td id="d-topmost">&mdash;</td></tr>
+            <tr><td class="k">guide root</td><td id="d-root">&mdash;</td></tr>
+            <tr><td class="k">open popovers</td><td id="d-popovers">&mdash;</td></tr>
+            <tr><td class="k">modal dialogs</td><td id="d-dialogs">&mdash;</td></tr>
+            <tr><td class="k">fullscreenElement</td><td id="d-fullscreen">&mdash;</td></tr>
+            <tr><td class="k">guide re-raises</td><td id="d-reraises">0 re-raised, 0 shown</td></tr>
+        </table>
+        <div id="log"></div>
+    </div>
+
+    <script>
+        // ── Competitors ────────────────────────────────────────────
+        function openModalDialog() {
+            var dialog = document.getElementById('fs-modal-dialog');
+            if (dialog.open) return;
+            dialog.showModal();
+        }
+
+        function openPlainDialog() {
+            document.getElementById('fs-plain-dialog').show();
+        }
+
+        function openPopover(id) {
+            var el = document.getElementById(id);
+            if (el.matches(':popover-open')) return;
+            el.showPopover();
+        }
+
+        function goFullscreen() {
+            var el = document.getElementById('fs-target');
+            el.classList.add('armed');
+            var req = el.requestFullscreen();
+            if (req && req.catch) {
+                req.catch(function(err) {
+                    el.classList.remove('armed');
+                    log('requestFullscreen rejected: ' + err.message);
+                });
+            }
+        }
+
+        function fullscreenTheDialog() {
+            var dialog = document.getElementById('fs-modal-dialog');
+            if (!dialog.open) dialog.showModal();
+            var req = dialog.requestFullscreen();
+            if (req && req.catch) {
+                req.catch(function(err) { log('requestFullscreen rejected: ' + err.message); });
+            }
+        }
+
+        function exitFullscreen() {
+            if (document.fullscreenElement) document.exitFullscreen();
+        }
+
+        document.addEventListener('fullscreenchange', function() {
+            if (!document.fullscreenElement) {
+                document.getElementById('fs-target').classList.remove('armed');
+            }
+        });
+
+        function closeEverything() {
+            war = false;
+            document.getElementById('war-btn').textContent = 'War mode: OFF';
+
+            if (document.fullscreenElement) document.exitFullscreen();
+
+            ['fs-modal-dialog', 'fs-plain-dialog'].forEach(function(id) {
+                var el = document.getElementById(id);
+                if (el.open) el.close();
+            });
+
+            ['fs-popover-manual', 'fs-popover-auto', 'corner-popover'].forEach(function(id) {
+                var el = document.getElementById(id);
+                if (el.matches(':popover-open')) el.hidePopover();
+            });
+        }
+
+        // ── War mode ───────────────────────────────────────────────
+        // Stands in for a host app that insists on being on top. Deferred to a task so the
+        // re-raise does not land inside another popover's transition, which throws.
+        var war = false;
+
+        function toggleWar() {
+            war = !war;
+            document.getElementById('war-btn').textContent = 'War mode: ' + (war ? 'ON' : 'OFF');
+
+            if (war) {
+                openPopover('fs-popover-manual');
+                log('war mode on -- this page will now fight for the top layer');
+            }
+        }
+
+        document.addEventListener('toggle', function(evt) {
+            if (!war) return;
+            if (evt.newState !== 'open') return;
+
+            var mine = document.getElementById('fs-popover-manual');
+            if (evt.target === mine) return;
+
+            setTimeout(function() {
+                if (!war || !mine.matches(':popover-open')) return;
+                mine.hidePopover();
+                mine.showPopover();
+            }, 0);
+        }, true);
+
+        // ── Guide helpers ──────────────────────────────────────────
+        function showGuide() {
+            var ref = document.getElementById('guide-ref').value.trim();
+            if (!ref) return log('enter a guide id or name first');
+
+            try {
+                var guides = window.pendo.getActiveGuides() || [];
+                var byId = guides.filter(function(g) { return g.id === ref; })[0];
+
+                if (byId) {
+                    window.pendo.showGuideById(ref);
+                } else {
+                    window.pendo.showGuideByName(ref);
+                }
+
+                log('asked to show "' + ref + '"');
+            } catch (e) {
+                log('could not show guide: ' + e.message);
+            }
+        }
+
+        function listGuides() {
+            try {
+                var guides = window.pendo.getActiveGuides() || [];
+
+                if (!guides.length) return log('no active guides for this visitor/page');
+
+                log('active guides:\n' + guides.map(function(g) {
+                    var step = (g.steps || [])[0] || {};
+                    var popover = step.attributes && step.attributes.popover;
+                    return '  ' + g.id + '  ' + (g.name || '(unnamed)') +
+                        '  popover=' + (popover && popover.enabled ? 'on' : 'off');
+                }).join('\n'));
+            } catch (e) {
+                log('could not list guides: ' + e.message);
+            }
+        }
+
+        // ── Diagnostics ────────────────────────────────────────────
+        function guideRoot() {
+            return document.querySelector('[id^="pendo-base"]');
+        }
+
+        function guideContainer() {
+            return document.querySelector('[id^="pendo-g-"]');
+        }
+
+        function describe(el) {
+            if (!el) return 'none';
+            if (el.id) return '#' + el.id;
+            var cls = (el.className || '').toString().split(/\s+/).filter(Boolean)[0];
+            return el.tagName.toLowerCase() + (cls ? '.' + cls : '');
+        }
+
+        function nearestIdentified(el) {
+            while (el && !el.id && el !== document.body) el = el.parentElement;
+            return el;
+        }
+
+        // Hit testing is the only readout that reflects actual top-layer order -- there is no
+        // API that exposes the stack, so ask the browser what it would hit instead.
+        function topmostAtGuideCenter() {
+            var container = guideContainer();
+            if (!container) return { text: 'no guide rendered', state: '' };
+
+            var box = container.getBoundingClientRect();
+            if (!box.width || !box.height) return { text: 'guide has no box', state: 'warn' };
+
+            var hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+            if (!hit) return { text: 'nothing (outside viewport?)', state: 'warn' };
+
+            var isGuide = container.contains(hit) || hit === container;
+
+            // A modal <dialog> blocks the whole document outside itself, so the guide is not
+            // hit-testable while one is open -- elementsFromPoint does not even list it. Hit
+            // testing cannot answer the question in that state; only looking at the pixels can.
+            if (!isGuide && document.querySelector('dialog:modal')) {
+                return {
+                    text: describe(nearestIdentified(hit)) + '  (cannot tell -- a modal dialog blocks hit testing)',
+                    state: 'warn'
+                };
+            }
+
+            return {
+                text: describe(nearestIdentified(hit)) + (isGuide ? '  (guide is on top)' : '  (guide is covered)'),
+                state: isGuide ? 'ok' : 'bad'
+            };
+        }
+
+        function listOpen(selector) {
+            var found;
+            try {
+                found = document.querySelectorAll(selector);
+            } catch (e) {
+                return 'selector unsupported';
+            }
+            if (!found.length) return 'none';
+            return Array.prototype.map.call(found, describe).join(', ');
+        }
+
+        function set(id, text, state) {
+            var el = document.getElementById(id);
+            el.textContent = text;
+            el.className = state || '';
+        }
+
+        function refresh() {
+            var topmost = topmostAtGuideCenter();
+            set('d-topmost', topmost.text, topmost.state);
+
+            var root = guideRoot();
+            if (!root) {
+                set('d-root', 'not rendered', '');
+            } else {
+                var attr = root.getAttribute('popover');
+                var open = attr && root.matches(':popover-open');
+                set('d-root', describe(root) + '  popover=' + (attr || 'none') + '  open=' + !!open,
+                    attr ? (open ? 'ok' : 'bad') : 'warn');
+            }
+
+            set('d-popovers', listOpen(':popover-open'));
+            set('d-dialogs', listOpen('dialog:modal'));
+            set('d-fullscreen', describe(document.fullscreenElement));
+        }
+
+        // A synchronous hidePopover() + showPopover() queues only ONE toggle task, which the spec
+        // updates in place rather than firing twice -- so a re-raise surfaces as open -> open,
+        // not as a closed/open pair. Counting closed -> open would miss every one of them.
+        var shows = 0;
+        var reRaises = 0;
+
+        document.addEventListener('toggle', function(evt) {
+            var root = guideRoot();
+            if (!root || evt.target !== root) return;
+
+            if (evt.oldState === 'closed' && evt.newState === 'open') {
+                shows++;
+            } else if (evt.oldState === 'open' && evt.newState === 'open') {
+                reRaises++;
+            } else {
+                return;
+            }
+
+            set('d-reraises', reRaises + ' re-raised, ' + shows + ' shown', reRaises > 20 ? 'bad' : '');
+        }, true);
+
+        var lines = [];
+
+        function log(message) {
+            var stamp = new Date().toLocaleTimeString();
+            lines.unshift('[' + stamp + '] ' + message);
+            lines = lines.slice(0, 12);
+            document.getElementById('log').textContent = lines.join('\n');
+        }
+
+        document.addEventListener('toggle', function(evt) {
+            log('toggle ' + describe(evt.target) + ': ' + evt.oldState + ' -> ' + evt.newState);
+        }, true);
+
+        setInterval(refresh, 250);
+        refresh();
+
+        // Open on load -- a modal dialog is the hardest competitor for a guide to beat.
+        openModalDialog();
+    </script>
+
+    <!-- Pendo agent -- same install as vds.html -->
+    <script>
+        (function(apiKey){
+            (function(p,e,n,d,o){var v,w,x,y,z;o=p[d]=p[d]||{};o._q=o._q||[];
+            v=['initialize','identify','updateOptions','pageLoad','track'];for(w=0,x=v.length;w<x;++w)(function(m){
+                o[m]=o[m]||function(){o._q[m===v[0]?'unshift':'push']([m].concat([].slice.call(arguments,0)));};})(v[w]);
+                y=e.createElement(n);y.async=!0;y.src='https://cdn.pendo-atlas.pendo-dev.com/agent/static/'+apiKey+'/pendo.js';
+                z=e.getElementsByTagName(n)[0];z.parentNode.insertBefore(y,z);})(window,document,'script','pendo');
+        })('bc842892-890f-45bc-4104-bb08da92ddb4');
+
+        (function() {
+            var params = new URLSearchParams(location.search);
+
+            pendo.initialize({
+                visitor: { id: params.get('visitor') || 'top-layer-tester', role: 'tester' },
+                account: { id: params.get('account') || 'top-layer-town' }
+            });
+        })();
+    </script>
+</body>
+</html>

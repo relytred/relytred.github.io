@@ -270,6 +270,46 @@
 
         .dl-group textarea { resize: vertical; }
 
+        /* ── Auto popovers ────────────────────────────────────── */
+        .auto-popover {
+            width: 320px;
+            max-width: 90vw;
+            margin: 0;
+            padding: 18px 22px;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-family: Arial, sans-serif;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.25);
+        }
+
+        .auto-popover h4 { margin: 0 0 6px; font-size: 15px; }
+
+        .auto-popover p { margin: 0 0 12px; font-size: 13px; line-height: 1.4; }
+
+        /* Overrides the UA default of centering a popover in the top layer. */
+        #popoverAlpha {
+            background: #5b6fd6;
+            inset: 50% 50% auto auto;
+        }
+
+        #popoverBravo {
+            background: #e67e22;
+            inset: auto auto 24px 24px;
+        }
+
+        .popover-close {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.6);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .popover-close:hover { background: rgba(255,255,255,0.3); }
+
         /* The designer panel's monospace fields suit IDs, not names and messages. */
         .simple-form input,
         .simple-form select,
@@ -295,6 +335,28 @@
             console.log('im locating');
             pendo.location.setUrl('https://relytred.github.io/fakeLocation');
         }
+
+        const POPOVER_INTERVAL = 5000;
+
+        // Opens A right away, then alternates the two auto popovers. Showing one light-dismisses
+        // the other, but showPopover() throws when the popover is already open, so skip those turns.
+        function startPopoverRotation() {
+            const popovers = [document.getElementById('popoverAlpha'), document.getElementById('popoverBravo')];
+
+            if (!popovers[0].showPopover) return;
+
+            popovers[0].showPopover();
+
+            let next = 1;
+
+            setInterval(() => {
+                const popover = popovers[next];
+                if (!popover.matches(':popover-open')) popover.showPopover();
+                next = (next + 1) % popovers.length;
+            }, POPOVER_INTERVAL);
+        }
+
+        document.addEventListener('DOMContentLoaded', startPopoverRotation);
 
         function launchDesigner() {
             const url     = document.getElementById('dlUrl').value.trim();
@@ -549,9 +611,8 @@
                 z=e.getElementsByTagName(n)[0];z.parentNode.insertBefore(y,z);})(window,document,'script','pendo');
         })('bc842892-890f-45bc-4104-bb08da92ddb4');
 
-        function saveSession(visitorId, accountId, expiryHours, doNotTrack) {
-            const expiresAt = Date.now() + expiryHours * 60 * 60 * 1000;
-            localStorage.setItem(STORAGE_KEY, JSON.stringify({ visitorId, accountId, expiresAt, doNotTrack }));
+        function saveSession(session) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
         }
 
         function loadSession() {
@@ -573,7 +634,14 @@
             return expiresAt ? new Date(expiresAt).toLocaleString() : 'this session only';
         }
 
-        function activateSession(visitorId, accountId, expiresAt, doNotTrack) {
+        // 'strictlyNecessary, functional' -> ['strictlyNecessary', 'functional']
+        function parseTiers(value) {
+            return value.split(',').map(tier => tier.trim()).filter(Boolean);
+        }
+
+        function activateSession(session) {
+            const { visitorId, accountId, expiresAt, doNotTrack } = session;
+            const tiers = session.cookieConsentTiers || [];
             const options = {
                 visitor: { id: visitorId },
                 account: { id: accountId || 'no-account' }
@@ -581,6 +649,9 @@
 
             // The agent replaces visitor/account with the cookieless sentinel when this is set.
             if (doNotTrack) options.doNotTrackGuides = true;
+
+            // Agent resolves these against the subscription's cookieConsentCollection.
+            if (tiers.length) options.cookieConsentTiers = tiers;
 
             pendo.initialize(options);
 
@@ -590,6 +661,7 @@
             banner.classList.add('visible');
             banner.querySelector('#bannerVisitor').textContent = doNotTrack ? '__cookieless_visitor__' : visitorId;
             banner.querySelector('#bannerAccount').textContent = doNotTrack ? 'none (DNT)' : (accountId || 'none');
+            banner.querySelector('#bannerTiers').textContent = tiers.length ? tiers.join(', ') : 'not set';
             banner.querySelector('#bannerExpiry').textContent = formatExpiry(expiresAt);
         }
 
@@ -603,15 +675,20 @@
             document.getElementById('userForm').addEventListener('submit', function(e) {
                 e.preventDefault();
                 const visitorId = document.getElementById('visitorId').value.trim();
-                const accountId = document.getElementById('accountId').value.trim();
                 const expiryHours = Math.max(0, Math.min(720, parseInt(document.getElementById('expiryHours').value, 10) || 0));
-                const doNotTrack = document.getElementById('doNotTrack').checked;
 
                 if (!visitorId) { alert('Visitor ID is required'); return; }
 
-                const expiresAt = expiryHours > 0 ? Date.now() + expiryHours * 60 * 60 * 1000 : null;
-                if (expiryHours > 0) saveSession(visitorId, accountId, expiryHours, doNotTrack);
-                activateSession(visitorId, accountId, expiresAt, doNotTrack);
+                const session = {
+                    visitorId,
+                    accountId: document.getElementById('accountId').value.trim(),
+                    doNotTrack: document.getElementById('doNotTrack').checked,
+                    cookieConsentTiers: parseTiers(document.getElementById('cookieTiers').value),
+                    expiresAt: expiryHours > 0 ? Date.now() + expiryHours * 60 * 60 * 1000 : null
+                };
+
+                if (expiryHours > 0) saveSession(session);
+                activateSession(session);
             });
 
             document.getElementById('clearSessionBtn').addEventListener('click', clearSession);
@@ -629,7 +706,8 @@
             const session = loadSession();
             if (session) {
                 document.getElementById('doNotTrack').checked = !!session.doNotTrack;
-                activateSession(session.visitorId, session.accountId, session.expiresAt, session.doNotTrack);
+                document.getElementById('cookieTiers').value = (session.cookieConsentTiers || []).join(', ');
+                activateSession(session);
             }
         });
     </script>
@@ -659,6 +737,11 @@
                         </div>
                         <div class="expiry-hint">sets doNotTrackGuides — cookieless visitor, guide analytics only</div>
                     </div>
+                    <div class="form-group">
+                        <label for="cookieTiers">Cookie consent tiers</label>
+                        <input type="text" id="cookieTiers" name="cookieTiers" placeholder="strictlyNecessary, functional">
+                        <div class="expiry-hint">comma separated — sent as the cookieConsentTiers array</div>
+                    </div>
                     <button type="submit" class="submit-btn">Submit</button>
                 </form>
             </div>
@@ -668,6 +751,7 @@
         <div id="sessionBanner" class="session-banner">
             <span><strong>Visitor:</strong> <span id="bannerVisitor"></span></span>
             <span><strong>Account:</strong> <span id="bannerAccount"></span></span>
+            <span><strong>Consent tiers:</strong> <span id="bannerTiers"></span></span>
             <span class="expiry-label">Expires: <span id="bannerExpiry"></span></span>
             <button class="clear-session-btn" id="clearSessionBtn">Clear session</button>
         </div>
@@ -680,6 +764,21 @@
         </div>
         <button class='--alert-button' onclick="addAlert()">Add alert! </button>
         <button class='button' onclick="testLocation()">Locate me </button>
+        <!--button class='button' popovertarget="popoverAlpha">Popover A</button>
+        <button class='button' popovertarget="popoverBravo">Popover B</button-->>
+
+        <!-- Auto popovers — the rotation below alternates these every 5 seconds -->
+        <div popover id="popoverAlpha" class="auto-popover">
+            <h4>Popover A</h4>
+            <p>Auto popover in the top layer, anchored to the top right. Showing B dismisses this one.</p>
+            <button class="popover-close" popovertarget="popoverAlpha" popovertargetaction="hide">Close</button>
+        </div>
+
+        <div popover id="popoverBravo" class="auto-popover">
+            <h4>Popover B</h4>
+            <p>Auto popover in the top layer, anchored to the bottom left. Showing A dismisses this one.</p>
+            <button class="popover-close" popovertarget="popoverBravo" popovertargetaction="hide">Close</button>
+        </div>
         
         <!-- Designer Launch Panel -->
         <div class="designer-launch-panel">

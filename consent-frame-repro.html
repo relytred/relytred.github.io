@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Consent Frame Repro — consent does not propagate to child frames</title>
+<style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f4f5f7; color: #1a2332; padding: 24px; }
+    .wrap { max-width: 1100px; margin: 0 auto; }
+    h1 { font-size: 20px; margin-bottom: 4px; }
+    .sub { font-size: 13px; color: #5e6c84; margin-bottom: 20px; }
+
+    .card { background: #fff; border: 1px solid #dfe1e6; border-radius: 6px; padding: 18px; margin-bottom: 16px; }
+    .card h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: #8993a4; margin-bottom: 12px; }
+
+    ol.steps { font-size: 13px; color: #42526e; padding-left: 20px; line-height: 1.9; }
+    ol.steps code { background: #f4f5f7; padding: 1px 5px; border-radius: 3px; font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
+    .verdict { margin-top: 12px; padding: 10px 12px; border-radius: 4px; font-size: 13px; font-weight: 600; }
+    .verdict.wait { background: #f4f5f7; color: #5e6c84; }
+    .verdict.bug  { background: #ffebe6; color: #bf2600; border: 1px solid #ff8f73; }
+    .verdict.ok   { background: #e3fcef; color: #006644; border: 1px solid #79f2c0; }
+
+    .btns { display: flex; flex-wrap: wrap; gap: 8px; }
+    button { padding: 8px 14px; border-radius: 4px; font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid #dfe1e6; background: #fff; color: #0052cc; }
+    button:hover { background: #f4f5f7; }
+    button.primary { background: #0052cc; color: #fff; border-color: #0052cc; }
+    button.danger  { background: #fff; color: #de350b; border-color: #de350b; }
+    label.inline { font-size: 12px; color: #5e6c84; display: flex; align-items: center; gap: 6px; margin-left: auto; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: #8993a4; padding: 6px 10px; border-bottom: 1px solid #dfe1e6; }
+    td { padding: 8px 10px; border-bottom: 1px solid #f4f5f7; font-family: ui-monospace, Menlo, monospace; font-size: 12px; word-break: break-all; }
+    td.who { font-family: inherit; color: #5e6c84; width: 130px; }
+    .dnt { color: #de350b; font-weight: 700; }
+    .ok  { color: #216e4e; font-weight: 700; }
+
+    .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    #eventlog { list-style: none; font-family: ui-monospace, Menlo, monospace; font-size: 11px; background: #1a2332; border-radius: 4px; padding: 10px; max-height: 260px; overflow-y: auto; }
+    #eventlog li { color: #c5cee0; padding: 2px 0; }
+    #eventlog li .t { color: #5e6c84; }
+    #eventlog li.hi { color: #4ade80; }
+    #eventlog li.warn { color: #fbbf24; }
+
+    iframe { width: 100%; height: 420px; border: 2px solid #ff8f73; border-radius: 4px; background: #fff; }
+    .cfg { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+    .cfg .f { display: flex; flex-direction: column; gap: 4px; }
+    .cfg label { font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: #8993a4; }
+    .cfg input { border: 1px solid #dfe1e6; border-radius: 4px; padding: 6px 8px; font-size: 12px; font-family: ui-monospace, Menlo, monospace; min-width: 260px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Consent does not propagate to child frames</h1>
+<div class="sub">
+    <code>pendo.updateCookieConsent()</code> only updates the frame it is called in. The identity that follows a
+    re-grant is broadcast to child frames, but each child still evaluates it against its own stale (denied) consent
+    policy and drops it.
+</div>
+
+<div class="card">
+    <h2>How to reproduce</h2>
+    <ol class="steps">
+        <li>Load this page. Both frames start on the <code>strictlyNecessary</code> tier, which sets <code>trackVisitors: false</code>, so both collapse to <code>__cookieless_visitor__</code>.</li>
+        <li>Click <strong>Grant identity consent</strong>. That calls <code>updateCookieConsent(['strictlyNecessary', 'functional'])</code> in the top frame only.</li>
+        <li>The top frame fires <code>identifyRequested</code>; this page answers it with <code>pendo.identify()</code>, and the top frame picks up the real visitor ID.</li>
+        <li>Watch the child frame: it stays on <code>__cookieless_visitor__</code>, and its console shows <code>Ignoring visitor id … while identity consent is dnt</code>.</li>
+    </ol>
+    <div class="verdict wait" id="verdict">Waiting for both frames to install the Web SDK&hellip;</div>
+</div>
+
+<div class="card">
+    <h2>Controls</h2>
+    <div class="btns">
+        <button class="primary" onclick="grant()">Grant identity consent (top frame)</button>
+        <button onclick="deny()">Deny identity consent</button>
+        <button onclick="identifyTop()">pendo.identify() in top frame</button>
+        <button onclick="identifyChild()">pendo.identify() inside child frame</button>
+        <button onclick="reloadFrame()">Reload child frame</button>
+        <button class="danger" onclick="resetAll()">Reset &amp; reload</button>
+        <label class="inline">
+            <input type="checkbox" id="autorespond" checked>
+            auto-respond to <code>identifyRequested</code>
+        </label>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Identity per frame</h2>
+    <table>
+        <thead><tr><th>Frame</th><th>Visitor ID</th><th>Account ID</th></tr></thead>
+        <tbody>
+            <tr><td class="who">Top</td><td id="top-visitor">&mdash;</td><td id="top-account">&mdash;</td></tr>
+            <tr><td class="who">Child (iframe)</td><td id="kid-visitor">&mdash;</td><td id="kid-account">&mdash;</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="cols">
+    <div class="card">
+        <h2>Top frame event log</h2>
+        <ul id="eventlog"><li>waiting&hellip;</li></ul>
+    </div>
+    <div class="card">
+        <h2>Child frame</h2>
+        <iframe id="kid" src="./consent-frame-repro-inner.html"></iframe>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Config (saved locally, reload to apply)</h2>
+    <div class="cfg">
+        <div class="f"><label>API key</label><input id="cfg-apikey" spellcheck="false"></div>
+        <div class="f"><label>Visitor ID</label><input id="cfg-visitor" spellcheck="false"></div>
+        <div class="f"><label>Account ID</label><input id="cfg-account" spellcheck="false"></div>
+        <button onclick="saveCfg()">Save &amp; reload</button>
+    </div>
+</div>
+
+</div>
+
+<script>
+var COOKIELESS = '__cookieless_visitor__';
+
+var DEFAULTS = {
+    apiKey:  '197e6666-28c5-4090-75a1-f451638c2bc7',
+    visitor: 'consent-repro-visitor-001',
+    account: 'consent-repro-account'
+};
+
+function cfg() {
+    try {
+        var saved = JSON.parse(localStorage.getItem('consent-frame-repro-config') || '{}');
+        return {
+            apiKey:  saved.apiKey  || DEFAULTS.apiKey,
+            visitor: saved.visitor || DEFAULTS.visitor,
+            account: saved.account || DEFAULTS.account
+        };
+    } catch (e) { return DEFAULTS; }
+}
+
+function saveCfg() {
+    localStorage.setItem('consent-frame-repro-config', JSON.stringify({
+        apiKey:  document.getElementById('cfg-apikey').value.trim(),
+        visitor: document.getElementById('cfg-visitor').value.trim(),
+        account: document.getElementById('cfg-account').value.trim()
+    }));
+    location.reload();
+}
+
+function resetAll() {
+    try {
+        Object.keys(localStorage)
+            .filter(function (k) { return k.indexOf('_pendo') === 0 || k.indexOf('pendo') === 0; })
+            .forEach(function (k) { localStorage.removeItem(k); });
+        sessionStorage.clear();
+        document.cookie.split(';').forEach(function (c) {
+            var name = c.split('=')[0].trim();
+            if (name.indexOf('_pendo') === 0) document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
+        });
+    } catch (e) { /* ignore */ }
+    location.reload();
+}
+
+var current = cfg();
+document.getElementById('cfg-apikey').value = current.apiKey;
+document.getElementById('cfg-visitor').value = current.visitor;
+document.getElementById('cfg-account').value = current.account;
+</script>
+
+<!-- Pendo snippet (dev environment) -->
+<script>
+(function (apiKey) {
+    (function(p,e,n,d,o){var v,w,x,y,z;o=p[d]=p[d]||{};o._q=o._q||[];
+    v=['initialize','identify','updateOptions','pageLoad','track'];for(w=0,x=v.length;w<x;++w)(function(m){
+        o[m]=o[m]||function(){o._q[m===v[0]?'unshift':'push']([m].concat([].slice.call(arguments,0)));};})(v[w]);
+        y=e.createElement(n);y.async=!0;y.src='https://cdn.pendo-atlas.pendo-dev.com/agent/static/'+apiKey+'/pendo.js';
+        z=e.getElementsByTagName(n)[0];z.parentNode.insertBefore(y,z);})(window,document,'script','pendo');
+})(current.apiKey);
+
+pendo.initialize({
+    visitor: { id: current.visitor, role: 'tester' },
+    account: { id: current.account, name: current.account },
+
+    // Install into the same-origin child frame and keep identity in sync between frames.
+    autoFrameInstall: true,
+    frameIdentitySync: true,
+    frameIdentityTopDownOnly: true,
+
+    // Start on a tier that denies identity. Both frames boot as __cookieless_visitor__.
+    cookieConsentTiers: ['strictlyNecessary'],
+    cookieConsentCollection: {
+        strictlyNecessary: {
+            visitorIdentity: { trackVisitors: false },
+            analytics: { enabled: false },
+            guides: { enabled: true },
+            sessionReplay: { enabled: false }
+        },
+        functional: {
+            visitorIdentity: { trackVisitors: true },
+            analytics: {
+                enabled: true,
+                eventCollection: {
+                    pageLoads: true, clicks: true, identify: true, meta: true,
+                    trackEvents: true, focus: true, formSubmits: true, fieldChanges: true,
+                    guideServing: true, utmParameters: true, textCollectionMode: 'all'
+                }
+            },
+            guides: { enabled: true },
+            sessionReplay: { enabled: true }
+        }
+    }
+});
+</script>
+
+<script>
+// ── Event log ────────────────────────────────────────────────
+var logEntries = [];
+function logEvent(msg, kind) {
+    logEntries.push({ msg: msg, kind: kind || '', t: new Date().toLocaleTimeString() });
+    if (logEntries.length > 120) logEntries.shift();
+    var ul = document.getElementById('eventlog');
+    ul.innerHTML = '';
+    logEntries.forEach(function (e) {
+        var li = document.createElement('li');
+        li.className = e.kind;
+        li.innerHTML = '<span class="t">' + e.t + '</span>  ' + e.msg;
+        ul.appendChild(li);
+    });
+    ul.scrollTop = ul.scrollHeight;
+}
+
+// ── Controls ─────────────────────────────────────────────────
+function grant() {
+    logEvent("updateCookieConsent(['strictlyNecessary','functional']) in TOP frame", 'hi');
+    pendo.updateCookieConsent(['strictlyNecessary', 'functional']);
+}
+
+function deny() {
+    logEvent("updateCookieConsent(['strictlyNecessary']) in TOP frame", 'warn');
+    pendo.updateCookieConsent(['strictlyNecessary']);
+}
+
+function identifyTop() {
+    logEvent('pendo.identify() in TOP frame');
+    pendo.identify(current.visitor, current.account);
+}
+
+function identifyChild() {
+    var p = childSdk();
+    if (!p) return logEvent('child frame has no Web SDK yet', 'warn');
+    logEvent('pendo.identify() called directly INSIDE the child frame', 'warn');
+    p.identify(current.visitor, current.account);
+}
+
+function reloadFrame() {
+    logEvent('reloading child frame');
+    document.getElementById('kid').contentWindow.location.reload();
+}
+
+// ── Readout ──────────────────────────────────────────────────
+function childSdk() {
+    try {
+        var w = document.getElementById('kid').contentWindow;
+        return (w && w.pendo && typeof w.pendo.getVisitorId === 'function') ? w.pendo : null;
+    } catch (e) { return null; }
+}
+
+function paint(cellId, value) {
+    var el = document.getElementById(cellId);
+    el.textContent = value == null ? '\u2014' : value;
+    el.className = value === COOKIELESS ? 'dnt' : (value && value !== '\u2014' ? 'ok' : '');
+}
+
+function refresh() {
+    var topReady = window.pendo && typeof pendo.getVisitorId === 'function';
+    var kid = childSdk();
+
+    var topVisitor = topReady ? pendo.getVisitorId() : null;
+    var kidVisitor = kid ? kid.getVisitorId() : null;
+
+    paint('top-visitor', topVisitor);
+    paint('top-account', topReady ? (pendo.getAccountId() || '(none)') : null);
+    paint('kid-visitor', kidVisitor);
+    paint('kid-account', kid ? (kid.getAccountId() || '(none)') : null);
+
+    var v = document.getElementById('verdict');
+    if (!topReady || !kid) {
+        v.className = 'verdict wait';
+        v.textContent = 'Waiting for both frames to install the Web SDK\u2026';
+    } else if (topVisitor === COOKIELESS && kidVisitor === COOKIELESS) {
+        v.className = 'verdict wait';
+        v.textContent = 'Both frames are on the DNT sentinel. Click "Grant identity consent" to start.';
+    } else if (topVisitor !== COOKIELESS && kidVisitor === COOKIELESS) {
+        v.className = 'verdict bug';
+        v.textContent = 'BUG REPRODUCED \u2014 the top frame is identified as "' + topVisitor +
+            '" but the child frame is still ' + COOKIELESS + '. Consent never reached it.';
+    } else {
+        v.className = 'verdict ok';
+        v.textContent = 'Both frames are identified as "' + topVisitor + '".';
+    }
+}
+
+// ── Wire up once the SDK is ready ────────────────────────────
+function onReady() {
+    if (!window.pendo || typeof pendo.events !== 'object') return setTimeout(onReady, 300);
+
+    pendo.enableLogging();
+
+    pendo.events.identifyRequested(function () {
+        logEvent('identifyRequested fired in TOP frame', 'hi');
+        if (!document.getElementById('autorespond').checked) {
+            logEvent('auto-respond is off \u2014 not calling identify()', 'warn');
+            return;
+        }
+        logEvent('responding with pendo.identify("' + current.visitor + '")');
+        pendo.identify(current.visitor, current.account);
+    });
+
+    // Same event, delivered as a DOM CustomEvent for CMPs that have no handle on pendo.
+    document.addEventListener('pendo_identifyRequested', function (e) {
+        logEvent('DOM event pendo_identifyRequested (detail: ' + JSON.stringify(e.detail) + ')');
+    });
+
+    logEvent('top frame ready \u2014 identityRequested handler installed');
+
+    // Turn on logging in the child too, so its rejection warning is visible.
+    var enableChildLogging = setInterval(function () {
+        var p = childSdk();
+        if (!p) return;
+        clearInterval(enableChildLogging);
+        try { p.enableLogging(); } catch (err) { /* ignore */ }
+        logEvent('child frame installed the Web SDK');
+    }, 400);
+}
+
+onReady();
+setInterval(refresh, 500);
+refresh();
+</script>
+</body>
+</html>

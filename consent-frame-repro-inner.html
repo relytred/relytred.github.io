@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Consent Frame Repro — Child Frame</title>
+<style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fffaf3; padding: 16px; color: #1a2332; }
+    h1 { font-size: 15px; margin-bottom: 2px; }
+    .sub { font-size: 11px; color: #8993a4; margin-bottom: 14px; }
+    .row { display: flex; gap: 8px; font-size: 12px; padding: 6px 0; border-bottom: 1px solid #f0e6d8; }
+    .row .k { color: #8993a4; width: 110px; flex-shrink: 0; }
+    .row .v { font-family: ui-monospace, Menlo, monospace; word-break: break-all; }
+    .v.dnt { color: #de350b; font-weight: 700; }
+    .v.ok { color: #216e4e; font-weight: 700; }
+    h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: #8993a4; margin: 16px 0 6px; }
+    #logs { list-style: none; font-family: ui-monospace, Menlo, monospace; font-size: 11px; max-height: 190px; overflow-y: auto; background: #1a2332; border-radius: 4px; padding: 8px; }
+    #logs li { color: #c5cee0; padding: 2px 0; word-break: break-word; }
+    #logs li.warn { color: #fbbf24; }
+    #logs li.error { color: #f87171; }
+    #logs li.hit { color: #f87171; font-weight: 700; }
+    .empty { color: #5e6c84; font-style: italic; }
+</style>
+</head>
+<body>
+
+<h1>Child frame</h1>
+<div class="sub">The SDK installs itself here via <code>autoFrameInstall</code>.</div>
+
+<div class="row"><span class="k">Web SDK</span><span class="v" id="installed">not installed yet</span></div>
+<div class="row"><span class="k">Visitor ID</span><span class="v" id="visitor">&mdash;</span></div>
+<div class="row"><span class="k">Account ID</span><span class="v" id="account">&mdash;</span></div>
+
+<h2>Console output captured in this frame</h2>
+<ul id="logs"><li class="empty">nothing yet&hellip;</li></ul>
+
+<script>
+// Capture console before autoFrameInstall injects the SDK, so we see the
+// "while identity consent is dnt" warning that proves the sync was rejected here.
+window.__reproLogs = [];
+['log', 'warn', 'error'].forEach(function (method) {
+    var original = console[method].bind(console);
+    console[method] = function () {
+        try {
+            window.__reproLogs.push({
+                level: method,
+                msg: Array.prototype.slice.call(arguments).map(String).join(' ')
+            });
+            if (window.__reproLogs.length > 200) window.__reproLogs.shift();
+        } catch (e) { /* never let logging break the frame */ }
+        original.apply(console, arguments);
+    };
+});
+
+var COOKIELESS = '__cookieless_visitor__';
+
+function sdk() {
+    return (window.pendo && typeof window.pendo.getVisitorId === 'function') ? window.pendo : null;
+}
+
+function render() {
+    var p = sdk();
+    var installed = document.getElementById('installed');
+    var visitor = document.getElementById('visitor');
+    var account = document.getElementById('account');
+
+    if (!p) {
+        installed.textContent = window.pendo ? 'bootstrapping…' : 'not installed yet';
+        return;
+    }
+
+    installed.textContent = 'installed';
+    installed.className = 'v ok';
+
+    var vid = p.getVisitorId();
+    visitor.textContent = vid;
+    visitor.className = 'v ' + (vid === COOKIELESS ? 'dnt' : 'ok');
+    account.textContent = p.getAccountId() || '(none)';
+
+    var list = document.getElementById('logs');
+    list.innerHTML = '';
+    if (!window.__reproLogs.length) {
+        list.innerHTML = '<li class="empty">nothing yet…</li>';
+        return;
+    }
+    window.__reproLogs.forEach(function (entry) {
+        var li = document.createElement('li');
+        // The warning from set_visitor_id / set_account_id is the smoking gun.
+        var isHit = entry.msg.indexOf('identity consent is dnt') !== -1;
+        li.className = isHit ? 'hit' : entry.level;
+        li.textContent = (isHit ? '>> ' : '') + entry.msg;
+        list.appendChild(li);
+    });
+    list.scrollTop = list.scrollHeight;
+}
+
+setInterval(render, 500);
+render();
+</script>
+</body>
+</html>

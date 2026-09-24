@@ -7,46 +7,52 @@
 <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f4f5f7; color: #1a2332; padding: 24px; }
-    .wrap { max-width: 1100px; margin: 0 auto; }
+    .wrap { max-width: 1180px; margin: 0 auto; }
     h1 { font-size: 20px; margin-bottom: 4px; }
     .sub { font-size: 13px; color: #5e6c84; margin-bottom: 20px; }
+    code { background: #f4f5f7; padding: 1px 5px; border-radius: 3px; font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
 
     .card { background: #fff; border: 1px solid #dfe1e6; border-radius: 6px; padding: 18px; margin-bottom: 16px; }
     .card h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: #8993a4; margin-bottom: 12px; }
 
     ol.steps { font-size: 13px; color: #42526e; padding-left: 20px; line-height: 1.9; }
-    ol.steps code { background: #f4f5f7; padding: 1px 5px; border-radius: 3px; font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
     .verdict { margin-top: 12px; padding: 10px 12px; border-radius: 4px; font-size: 13px; font-weight: 600; }
     .verdict.wait { background: #f4f5f7; color: #5e6c84; }
     .verdict.bug  { background: #ffebe6; color: #bf2600; border: 1px solid #ff8f73; }
     .verdict.ok   { background: #e3fcef; color: #006644; border: 1px solid #79f2c0; }
+    .verdict + .verdict { margin-top: 8px; }
 
-    .btns { display: flex; flex-wrap: wrap; gap: 8px; }
+    .btns { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
     button { padding: 8px 14px; border-radius: 4px; font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid #dfe1e6; background: #fff; color: #0052cc; }
     button:hover { background: #f4f5f7; }
     button.primary { background: #0052cc; color: #fff; border-color: #0052cc; }
     button.danger  { background: #fff; color: #de350b; border-color: #de350b; }
-    label.inline { font-size: 12px; color: #5e6c84; display: flex; align-items: center; gap: 6px; margin-left: auto; }
+    label.inline { font-size: 12px; color: #5e6c84; display: flex; align-items: center; gap: 6px; }
 
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: #8993a4; padding: 6px 10px; border-bottom: 1px solid #dfe1e6; }
-    td { padding: 8px 10px; border-bottom: 1px solid #f4f5f7; font-family: ui-monospace, Menlo, monospace; font-size: 12px; word-break: break-all; }
-    td.who { font-family: inherit; color: #5e6c84; width: 130px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: .4px; color: #8993a4; padding: 6px 8px; border-bottom: 1px solid #dfe1e6; }
+    td { padding: 8px; border-bottom: 1px solid #f4f5f7; font-family: ui-monospace, Menlo, monospace; word-break: break-all; vertical-align: top; }
+    td.who { font-family: inherit; color: #1a2332; font-weight: 600; width: 190px; }
+    td.who small { display: block; font-weight: 400; color: #8993a4; font-size: 10px; margin-top: 2px; }
     .dnt { color: #de350b; font-weight: 700; }
     .ok  { color: #216e4e; font-weight: 700; }
+    .match { color: #216e4e; }
+    .differs { color: #de350b; font-weight: 700; }
 
-    .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    #eventlog { list-style: none; font-family: ui-monospace, Menlo, monospace; font-size: 11px; background: #1a2332; border-radius: 4px; padding: 10px; max-height: 260px; overflow-y: auto; }
+    #eventlog { list-style: none; font-family: ui-monospace, Menlo, monospace; font-size: 11px; background: #1a2332; border-radius: 4px; padding: 10px; max-height: 210px; overflow-y: auto; }
     #eventlog li { color: #c5cee0; padding: 2px 0; }
     #eventlog li .t { color: #5e6c84; }
     #eventlog li.hi { color: #4ade80; }
     #eventlog li.warn { color: #fbbf24; }
 
-    iframe { width: 100%; height: 420px; border: 2px solid #ff8f73; border-radius: 4px; background: #fff; }
+    #frames { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 12px; }
+    #frames iframe { width: 100%; height: 400px; border: 2px solid #ff8f73; border-radius: 4px; background: #fff; }
+
     .cfg { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
     .cfg .f { display: flex; flex-direction: column; gap: 4px; }
-    .cfg label { font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: #8993a4; }
-    .cfg input { border: 1px solid #dfe1e6; border-radius: 4px; padding: 6px 8px; font-size: 12px; font-family: ui-monospace, Menlo, monospace; min-width: 260px; }
+    .cfg label { font-size: 10px; text-transform: uppercase; letter-spacing: .4px; color: #8993a4; }
+    .cfg input { border: 1px solid #dfe1e6; border-radius: 4px; padding: 6px 8px; font-size: 12px; font-family: ui-monospace, Menlo, monospace; min-width: 240px; }
+    .cfg input.wide { min-width: 420px; }
 </style>
 </head>
 <body>
@@ -54,20 +60,21 @@
 
 <h1>Consent does not propagate to child frames</h1>
 <div class="sub">
-    <code>pendo.updateCookieConsent()</code> only updates the frame it is called in. The identity that follows a
-    re-grant is broadcast to child frames, but each child still evaluates it against its own stale (denied) consent
-    policy and drops it.
+    <code>pendo.updateCookieConsent()</code> only updates the frame it is called in. Frames that already exist keep
+    their old policy and reject the identity that follows a re-grant; frames created afterwards are still seeded with
+    the tiers the page originally loaded with.
 </div>
 
 <div class="card">
     <h2>How to reproduce</h2>
     <ol class="steps">
-        <li>Load this page. Both frames start on the <code>strictlyNecessary</code> tier, which sets <code>trackVisitors: false</code>, so both collapse to <code>__cookieless_visitor__</code>.</li>
-        <li>Click <strong>Grant identity consent</strong>. That calls <code>updateCookieConsent(['strictlyNecessary', 'functional'])</code> in the top frame only.</li>
-        <li>The top frame fires <code>identifyRequested</code>; this page answers it with <code>pendo.identify()</code>, and the top frame picks up the real visitor ID.</li>
-        <li>Watch the child frame: it stays on <code>__cookieless_visitor__</code>, and its console shows <code>Ignoring visitor id … while identity consent is dnt</code>.</li>
+        <li>Load this page. Every frame starts on <code>strictlyNecessary</code> (<code>trackVisitors: false</code>), so all of them collapse to <code>__cookieless_visitor__</code>.</li>
+        <li>Click <strong>Grant identity consent</strong>. That calls <code>updateCookieConsent</code> in the top frame only, and schedules a brand-new frame two seconds later.</li>
+        <li>The top frame fires <code>identifyRequested</code>; this page answers with <code>pendo.identify()</code> and the top frame picks up the real visitor ID.</li>
+        <li>Check the table: existing frames stay on the sentinel, and the newly added frame is still seeded with the old granted tiers.</li>
     </ol>
-    <div class="verdict wait" id="verdict">Waiting for both frames to install the Web SDK&hellip;</div>
+    <div class="verdict wait" id="verdict-config">Waiting for frames&hellip;</div>
+    <div class="verdict wait" id="verdict-identity">Waiting for frames&hellip;</div>
 </div>
 
 <div class="card">
@@ -75,37 +82,37 @@
     <div class="btns">
         <button class="primary" onclick="grant()">Grant identity consent (top frame)</button>
         <button onclick="deny()">Deny identity consent</button>
+        <button onclick="addFrame()">Add a frame now</button>
         <button onclick="identifyTop()">pendo.identify() in top frame</button>
-        <button onclick="identifyChild()">pendo.identify() inside child frame</button>
-        <button onclick="reloadFrame()">Reload child frame</button>
         <button class="danger" onclick="resetAll()">Reset &amp; reload</button>
-        <label class="inline">
-            <input type="checkbox" id="autorespond" checked>
-            auto-respond to <code>identifyRequested</code>
-        </label>
+        <label class="inline"><input type="checkbox" id="autorespond" checked> auto-respond to <code>identifyRequested</code></label>
+        <label class="inline"><input type="checkbox" id="autoframe" checked> add a frame 2s after a consent change</label>
     </div>
 </div>
 
 <div class="card">
-    <h2>Identity per frame</h2>
+    <h2>Consent configuration and identity, per frame</h2>
     <table>
-        <thead><tr><th>Frame</th><th>Visitor ID</th><th>Account ID</th></tr></thead>
-        <tbody>
-            <tr><td class="who">Top</td><td id="top-visitor">&mdash;</td><td id="top-account">&mdash;</td></tr>
-            <tr><td class="who">Child (iframe)</td><td id="kid-visitor">&mdash;</td><td id="kid-account">&mdash;</td></tr>
-        </tbody>
+        <thead>
+            <tr>
+                <th>Frame</th>
+                <th>Configured tiers (<code>cookieConsentCollection</code>)</th>
+                <th>Granted tiers (<code>cookieConsentTiers</code>)</th>
+                <th>Visitor ID</th>
+            </tr>
+        </thead>
+        <tbody id="statetable"></tbody>
     </table>
 </div>
 
-<div class="cols">
-    <div class="card">
-        <h2>Top frame event log</h2>
-        <ul id="eventlog"><li>waiting&hellip;</li></ul>
-    </div>
-    <div class="card">
-        <h2>Child frame</h2>
-        <iframe id="kid" src="./consent-frame-repro-inner.html"></iframe>
-    </div>
+<div class="card">
+    <h2>Top frame event log</h2>
+    <ul id="eventlog"><li>waiting&hellip;</li></ul>
+</div>
+
+<div class="card">
+    <h2>Child frames</h2>
+    <div id="frames"></div>
 </div>
 
 <div class="card">
@@ -114,6 +121,8 @@
         <div class="f"><label>API key</label><input id="cfg-apikey" spellcheck="false"></div>
         <div class="f"><label>Visitor ID</label><input id="cfg-visitor" spellcheck="false"></div>
         <div class="f"><label>Account ID</label><input id="cfg-account" spellcheck="false"></div>
+        <div class="f"><label>Agent URL (<code>{apiKey}</code> is substituted)</label><input id="cfg-agent" class="wide" spellcheck="false"></div>
+        <button onclick="useLocalAgent()">Use local build</button>
         <button onclick="saveCfg()">Save &amp; reload</button>
     </div>
 </div>
@@ -122,11 +131,14 @@
 
 <script>
 var COOKIELESS = '__cookieless_visitor__';
+var CDN_AGENT = 'https://cdn.pendo-atlas.pendo-dev.com/agent/static/{apiKey}/pendo.js';
+var LOCAL_AGENT = 'https://local.pendo.io:8081/dist/pendo.jsonp.js';
 
 var DEFAULTS = {
     apiKey:  '197e6666-28c5-4090-75a1-f451638c2bc7',
     visitor: 'consent-repro-visitor-001',
-    account: 'consent-repro-account'
+    account: 'consent-repro-account',
+    agent:   CDN_AGENT
 };
 
 function cfg() {
@@ -135,7 +147,8 @@ function cfg() {
         return {
             apiKey:  saved.apiKey  || DEFAULTS.apiKey,
             visitor: saved.visitor || DEFAULTS.visitor,
-            account: saved.account || DEFAULTS.account
+            account: saved.account || DEFAULTS.account,
+            agent:   saved.agent   || DEFAULTS.agent
         };
     } catch (e) { return DEFAULTS; }
 }
@@ -144,9 +157,15 @@ function saveCfg() {
     localStorage.setItem('consent-frame-repro-config', JSON.stringify({
         apiKey:  document.getElementById('cfg-apikey').value.trim(),
         visitor: document.getElementById('cfg-visitor').value.trim(),
-        account: document.getElementById('cfg-account').value.trim()
+        account: document.getElementById('cfg-account').value.trim(),
+        agent:   document.getElementById('cfg-agent').value.trim()
     }));
     location.reload();
+}
+
+function useLocalAgent() {
+    document.getElementById('cfg-agent').value = LOCAL_AGENT;
+    saveCfg();
 }
 
 function resetAll() {
@@ -167,28 +186,33 @@ var current = cfg();
 document.getElementById('cfg-apikey').value = current.apiKey;
 document.getElementById('cfg-visitor').value = current.visitor;
 document.getElementById('cfg-account').value = current.account;
+document.getElementById('cfg-agent').value = current.agent;
+
+var AGENT_URL = current.agent.replace('{apiKey}', current.apiKey);
 </script>
 
-<!-- Pendo snippet (dev environment) -->
+<!-- Pendo snippet -->
 <script>
-(function (apiKey) {
+(function (agentUrl) {
     (function(p,e,n,d,o){var v,w,x,y,z;o=p[d]=p[d]||{};o._q=o._q||[];
     v=['initialize','identify','updateOptions','pageLoad','track'];for(w=0,x=v.length;w<x;++w)(function(m){
         o[m]=o[m]||function(){o._q[m===v[0]?'unshift':'push']([m].concat([].slice.call(arguments,0)));};})(v[w]);
-        y=e.createElement(n);y.async=!0;y.src='https://cdn.pendo-atlas.pendo-dev.com/agent/static/'+apiKey+'/pendo.js';
+        y=e.createElement(n);y.async=!0;y.src=agentUrl;
         z=e.getElementsByTagName(n)[0];z.parentNode.insertBefore(y,z);})(window,document,'script','pendo');
-})(current.apiKey);
+})(AGENT_URL);
 
 pendo.initialize({
+    apiKey: current.apiKey,
     visitor: { id: current.visitor, role: 'tester' },
     account: { id: current.account, name: current.account },
 
-    // Install into the same-origin child frame and keep identity in sync between frames.
+    // Install into same-origin child frames and keep identity in sync between them.
     autoFrameInstall: true,
     frameIdentitySync: true,
     frameIdentityTopDownOnly: true,
+    selfHostedWebSDKUrl: AGENT_URL,
 
-    // Start on a tier that denies identity. Both frames boot as __cookieless_visitor__.
+    // Start on a tier that denies identity, so every frame boots as __cookieless_visitor__.
     cookieConsentTiers: ['strictlyNecessary'],
     cookieConsentCollection: {
         strictlyNecessary: {
@@ -219,7 +243,7 @@ pendo.initialize({
 var logEntries = [];
 function logEvent(msg, kind) {
     logEntries.push({ msg: msg, kind: kind || '', t: new Date().toLocaleTimeString() });
-    if (logEntries.length > 120) logEntries.shift();
+    if (logEntries.length > 150) logEntries.shift();
     var ul = document.getElementById('eventlog');
     ul.innerHTML = '';
     logEntries.forEach(function (e) {
@@ -231,15 +255,48 @@ function logEvent(msg, kind) {
     ul.scrollTop = ul.scrollHeight;
 }
 
+// ── Frames ───────────────────────────────────────────────────
+var childFrames = [];
+var lastConsentChangeAt = 0;
+
+function addFrame(note) {
+    var label = 'Frame ' + (childFrames.length + 1);
+    var el = document.createElement('iframe');
+
+    el.src = './consent-frame-repro-inner.html?label=' + encodeURIComponent(label);
+    document.getElementById('frames').appendChild(el);
+
+    childFrames.push({
+        label: label,
+        note: note || 'present at page load',
+        el: el,
+        addedAt: Date.now()
+    });
+
+    logEvent('added ' + label + (note ? ' \u2014 ' + note : ''));
+}
+
+function scheduleFrame() {
+    if (!document.getElementById('autoframe').checked) return;
+    logEvent('adding a new frame in 2s to see what config it inherits');
+    setTimeout(function () {
+        addFrame('created after the consent change');
+    }, 2000);
+}
+
 // ── Controls ─────────────────────────────────────────────────
 function grant() {
     logEvent("updateCookieConsent(['strictlyNecessary','functional']) in TOP frame", 'hi');
+    lastConsentChangeAt = Date.now();
     pendo.updateCookieConsent(['strictlyNecessary', 'functional']);
+    scheduleFrame();
 }
 
 function deny() {
     logEvent("updateCookieConsent(['strictlyNecessary']) in TOP frame", 'warn');
+    lastConsentChangeAt = Date.now();
     pendo.updateCookieConsent(['strictlyNecessary']);
+    scheduleFrame();
 }
 
 function identifyTop() {
@@ -247,58 +304,130 @@ function identifyTop() {
     pendo.identify(current.visitor, current.account);
 }
 
-function identifyChild() {
-    var p = childSdk();
-    if (!p) return logEvent('child frame has no Web SDK yet', 'warn');
-    logEvent('pendo.identify() called directly INSIDE the child frame', 'warn');
-    p.identify(current.visitor, current.account);
-}
-
-function reloadFrame() {
-    logEvent('reloading child frame');
-    document.getElementById('kid').contentWindow.location.reload();
-}
-
-// ── Readout ──────────────────────────────────────────────────
-function childSdk() {
+// ── Reading state out of each frame ──────────────────────────
+function readFrame(win) {
     try {
-        var w = document.getElementById('kid').contentWindow;
-        return (w && w.pendo && typeof w.pendo.getVisitorId === 'function') ? w.pendo : null;
+        var p = win && win.pendo;
+        if (!p || typeof p.getConfigValue !== 'function') return null;
+        return {
+            tiers: [].concat(p.getConfigValue('cookieConsentTiers') || []),
+            collection: p.getConfigValue('cookieConsentCollection') || {},
+            visitorId: p.getVisitorId(),
+            accountId: p.getAccountId()
+        };
     } catch (e) { return null; }
 }
 
-function paint(cellId, value) {
-    var el = document.getElementById(cellId);
-    el.textContent = value == null ? '\u2014' : value;
-    el.className = value === COOKIELESS ? 'dnt' : (value && value !== '\u2014' ? 'ok' : '');
+function collectionNames(collection) {
+    return Object.keys(collection).sort();
+}
+
+function collectionSignature(collection) {
+    return JSON.stringify(collectionNames(collection).map(function (name) {
+        return [name, collection[name]];
+    }));
+}
+
+function cell(text, cls) {
+    var td = document.createElement('td');
+    td.textContent = text;
+    if (cls) td.className = cls;
+    return td;
+}
+
+function renderRow(tbody, label, note, state, topState) {
+    var tr = document.createElement('tr');
+    var who = document.createElement('td');
+
+    who.className = 'who';
+    who.innerHTML = label + (note ? '<small>' + note + '</small>' : '');
+    tr.appendChild(who);
+
+    if (!state) {
+        var pending = cell('Web SDK not installed yet');
+        pending.colSpan = 3;
+        tr.appendChild(pending);
+        tbody.appendChild(tr);
+        return;
+    }
+
+    var names = collectionNames(state.collection).join(', ') || '(none)';
+    var sameCollection = !topState || collectionSignature(state.collection) === collectionSignature(topState.collection);
+    tr.appendChild(cell(names + (topState ? (sameCollection ? '  \u2713 match' : '  \u2717 differs') : ''), sameCollection ? 'match' : 'differs'));
+
+    tr.appendChild(cell(state.tiers.join(', ') || '(none)'));
+    tr.appendChild(cell(state.visitorId, state.visitorId === COOKIELESS ? 'dnt' : 'ok'));
+
+    tbody.appendChild(tr);
 }
 
 function refresh() {
-    var topReady = window.pendo && typeof pendo.getVisitorId === 'function';
-    var kid = childSdk();
+    var topState = readFrame(window);
+    var tbody = document.getElementById('statetable');
 
-    var topVisitor = topReady ? pendo.getVisitorId() : null;
-    var kidVisitor = kid ? kid.getVisitorId() : null;
+    tbody.innerHTML = '';
+    renderRow(tbody, 'Top', 'owns consent', topState, topState);
 
-    paint('top-visitor', topVisitor);
-    paint('top-account', topReady ? (pendo.getAccountId() || '(none)') : null);
-    paint('kid-visitor', kidVisitor);
-    paint('kid-account', kid ? (kid.getAccountId() || '(none)') : null);
+    var states = childFrames.map(function (frame) {
+        var state = readFrame(frame.el.contentWindow);
+        renderRow(tbody, frame.label, frame.note, state, topState);
+        return { frame: frame, state: state };
+    });
 
-    var v = document.getElementById('verdict');
-    if (!topReady || !kid) {
-        v.className = 'verdict wait';
-        v.textContent = 'Waiting for both frames to install the Web SDK\u2026';
-    } else if (topVisitor === COOKIELESS && kidVisitor === COOKIELESS) {
-        v.className = 'verdict wait';
-        v.textContent = 'Both frames are on the DNT sentinel. Click "Grant identity consent" to start.';
-    } else if (topVisitor !== COOKIELESS && kidVisitor === COOKIELESS) {
-        v.className = 'verdict bug';
-        v.textContent = 'BUG REPRODUCED \u2014 the top frame is identified as "' + topVisitor +
-            '" but the child frame is still ' + COOKIELESS + '. Consent never reached it.';
+    updateVerdicts(topState, states);
+}
+
+function updateVerdicts(topState, states) {
+    var configEl = document.getElementById('verdict-config');
+    var identityEl = document.getElementById('verdict-identity');
+    var ready = states.filter(function (s) { return s.state; });
+
+    if (!topState || !ready.length) {
+        configEl.className = identityEl.className = 'verdict wait';
+        configEl.textContent = identityEl.textContent = 'Waiting for frames to install the Web SDK\u2026';
+        return;
+    }
+
+    var topSignature = collectionSignature(topState.collection);
+    var mismatched = ready.filter(function (s) { return collectionSignature(s.state.collection) !== topSignature; });
+
+    // A frame created after a consent change should have been seeded with the tiers in force now.
+    var expectedTiers = topState.tiers.slice().sort().join(',');
+    var staleNewFrames = ready.filter(function (s) {
+        return s.frame.addedAt > lastConsentChangeAt &&
+            lastConsentChangeAt > 0 &&
+            s.state.tiers.slice().sort().join(',') !== expectedTiers;
+    });
+
+    if (mismatched.length) {
+        configEl.className = 'verdict bug';
+        configEl.textContent = 'Configured tiers differ between frames: ' +
+            mismatched.map(function (s) { return s.frame.label; }).join(', ') +
+            ' \u2014 the tier definitions are not identical across frames.';
+    } else if (staleNewFrames.length) {
+        configEl.className = 'verdict bug';
+        configEl.textContent = 'BUG \u2014 ' + staleNewFrames.map(function (s) { return s.frame.label; }).join(', ') +
+            ' was created after the consent change but was seeded with [' +
+            staleNewFrames[0].state.tiers.join(', ') + '] instead of [' + topState.tiers.join(', ') + '].';
     } else {
-        v.className = 'verdict ok';
-        v.textContent = 'Both frames are identified as "' + topVisitor + '".';
+        configEl.className = 'verdict ok';
+        configEl.textContent = 'Every frame has identical configured tiers (' +
+            collectionNames(topState.collection).join(', ') + '), and frames created after a consent change inherit the current granted tiers.';
+    }
+
+    var stuck = ready.filter(function (s) { return s.state.visitorId === COOKIELESS; });
+
+    if (topState.visitorId === COOKIELESS && stuck.length === ready.length) {
+        identityEl.className = 'verdict wait';
+        identityEl.textContent = 'All frames are on the DNT sentinel. Click "Grant identity consent" to start.';
+    } else if (topState.visitorId !== COOKIELESS && stuck.length) {
+        identityEl.className = 'verdict bug';
+        identityEl.textContent = 'BUG REPRODUCED \u2014 the top frame is identified as "' + topState.visitorId +
+            '" but ' + stuck.map(function (s) { return s.frame.label; }).join(', ') +
+            ' still on ' + COOKIELESS + '. Consent never reached those frames.';
+    } else {
+        identityEl.className = 'verdict ok';
+        identityEl.textContent = 'Every frame is identified as "' + topState.visitorId + '".';
     }
 }
 
@@ -318,23 +447,14 @@ function onReady() {
         pendo.identify(current.visitor, current.account);
     });
 
-    // Same event, delivered as a DOM CustomEvent for CMPs that have no handle on pendo.
     document.addEventListener('pendo_identifyRequested', function (e) {
         logEvent('DOM event pendo_identifyRequested (detail: ' + JSON.stringify(e.detail) + ')');
     });
 
-    logEvent('top frame ready \u2014 identityRequested handler installed');
-
-    // Turn on logging in the child too, so its rejection warning is visible.
-    var enableChildLogging = setInterval(function () {
-        var p = childSdk();
-        if (!p) return;
-        clearInterval(enableChildLogging);
-        try { p.enableLogging(); } catch (err) { /* ignore */ }
-        logEvent('child frame installed the Web SDK');
-    }, 400);
+    logEvent('top frame ready \u2014 identifyRequested handler installed');
 }
 
+addFrame();
 onReady();
 setInterval(refresh, 500);
 refresh();

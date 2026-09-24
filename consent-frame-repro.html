@@ -47,6 +47,7 @@
 
     #frames { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 12px; }
     #frames iframe { width: 100%; height: 400px; border: 2px solid #ff8f73; border-radius: 4px; background: #fff; }
+    #frames iframe.kind-self { border-color: #8f9ff5; }
 
     .cfg { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
     .cfg .f { display: flex; flex-direction: column; gap: 4px; }
@@ -69,11 +70,18 @@
     <h2>How to reproduce</h2>
     <ol class="steps">
         <li>Load this page. Every frame starts on <code>strictlyNecessary</code> (<code>trackVisitors: false</code>), so all of them collapse to <code>__cookieless_visitor__</code>.</li>
-        <li>Click <strong>Grant identity consent</strong>. That calls <code>updateCookieConsent</code> in the top frame only, and schedules a brand-new frame two seconds later.</li>
+        <li>Click <strong>Grant identity consent</strong>. That calls <code>updateCookieConsent</code> in the top frame only, and two seconds later adds one frame of each kind.</li>
         <li>The top frame fires <code>identifyRequested</code>; this page answers with <code>pendo.identify()</code> and the top frame picks up the real visitor ID.</li>
         <li>Check the table: existing frames stay on the sentinel, and the newly added frame is still seeded with the old granted tiers.</li>
+        <li>
+            Two kinds of child frame are under test. <strong>Auto-installed</strong> frames get the SDK from the top frame's
+            <code>autoFrameInstall</code>, seeded with its local config. <strong>Self-installing</strong> frames opt out via
+            <code>ignoreIframeMonitor</code> and run their own snippet with their own hardcoded tiers, the way a real
+            embedded app would.
+        </li>
     </ol>
     <div class="verdict wait" id="verdict-config">Waiting for frames&hellip;</div>
+    <div class="verdict wait" id="verdict-selfinstall">Waiting for frames&hellip;</div>
     <div class="verdict wait" id="verdict-identity">Waiting for frames&hellip;</div>
 </div>
 
@@ -82,11 +90,12 @@
     <div class="btns">
         <button class="primary" onclick="grant()">Grant identity consent (top frame)</button>
         <button onclick="deny()">Deny identity consent</button>
-        <button onclick="addFrame()">Add a frame now</button>
+        <button onclick="addFrame('added by hand', 'auto')">Add an auto-installed frame now</button>
+        <button onclick="addFrame('added by hand', 'self')">Add a self-installing frame now</button>
         <button onclick="identifyTop()">pendo.identify() in top frame</button>
         <button class="danger" onclick="resetAll()">Reset &amp; reload</button>
         <label class="inline"><input type="checkbox" id="autorespond" checked> auto-respond to <code>identifyRequested</code></label>
-        <label class="inline"><input type="checkbox" id="autoframe" checked> add a frame 2s after a consent change</label>
+        <label class="inline"><input type="checkbox" id="autoframe" checked> add one frame of each kind 2s after a consent change</label>
     </div>
 </div>
 
@@ -259,28 +268,38 @@ function logEvent(msg, kind) {
 var childFrames = [];
 var lastConsentChangeAt = 0;
 
-function addFrame(note) {
+var FRAME_KINDS = {
+    auto: { page: './consent-frame-repro-inner.html', what: 'auto-installed' },
+    self: { page: './consent-frame-repro-self.html', what: 'own snippet' }
+};
+
+function addFrame(note, kind) {
+    kind = kind || 'auto';
+
     var label = 'Frame ' + (childFrames.length + 1);
     var el = document.createElement('iframe');
 
-    el.src = './consent-frame-repro-inner.html?label=' + encodeURIComponent(label);
+    el.src = FRAME_KINDS[kind].page + '?label=' + encodeURIComponent(label);
+    el.className = 'kind-' + kind;
     document.getElementById('frames').appendChild(el);
 
     childFrames.push({
         label: label,
-        note: note || 'present at page load',
+        kind: kind,
+        note: FRAME_KINDS[kind].what + ', ' + (note || 'present at page load'),
         el: el,
         addedAt: Date.now()
     });
 
-    logEvent('added ' + label + (note ? ' \u2014 ' + note : ''));
+    logEvent('added ' + label + ' (' + FRAME_KINDS[kind].what + ')' + (note ? ' \u2014 ' + note : ''));
 }
 
 function scheduleFrame() {
     if (!document.getElementById('autoframe').checked) return;
-    logEvent('adding a new frame in 2s to see what config it inherits');
+    logEvent('adding one frame of each kind in 2s to see what config they start with');
     setTimeout(function () {
-        addFrame('created after the consent change');
+        addFrame('created after the consent change', 'auto');
+        addFrame('created after the consent change', 'self');
     }, 2000);
 }
 
@@ -377,42 +396,69 @@ function refresh() {
     updateVerdicts(topState, states);
 }
 
+function labels(entries) {
+    return entries.map(function (s) { return s.frame.label; }).join(', ');
+}
+
 function updateVerdicts(topState, states) {
     var configEl = document.getElementById('verdict-config');
+    var selfEl = document.getElementById('verdict-selfinstall');
     var identityEl = document.getElementById('verdict-identity');
     var ready = states.filter(function (s) { return s.state; });
 
     if (!topState || !ready.length) {
-        configEl.className = identityEl.className = 'verdict wait';
-        configEl.textContent = identityEl.textContent = 'Waiting for frames to install the Web SDK\u2026';
+        configEl.className = selfEl.className = identityEl.className = 'verdict wait';
+        configEl.textContent = selfEl.textContent = identityEl.textContent =
+            'Waiting for frames to install the Web SDK\u2026';
         return;
     }
 
     var topSignature = collectionSignature(topState.collection);
     var mismatched = ready.filter(function (s) { return collectionSignature(s.state.collection) !== topSignature; });
 
-    // A frame created after a consent change should have been seeded with the tiers in force now.
+    // A frame that came up after a consent change should be on the tiers in force now. An
+    // auto-installed one inherits them from the top frame's local config; a self-installing one
+    // has to be told, since it was never on the channel when the change was broadcast.
     var expectedTiers = topState.tiers.slice().sort().join(',');
-    var staleNewFrames = ready.filter(function (s) {
-        return s.frame.addedAt > lastConsentChangeAt &&
-            lastConsentChangeAt > 0 &&
+    var stale = ready.filter(function (s) {
+        return lastConsentChangeAt > 0 &&
+            s.frame.addedAt > lastConsentChangeAt &&
             s.state.tiers.slice().sort().join(',') !== expectedTiers;
     });
+    var staleAuto = stale.filter(function (s) { return s.frame.kind === 'auto'; });
+    var staleSelf = stale.filter(function (s) { return s.frame.kind === 'self'; });
 
     if (mismatched.length) {
         configEl.className = 'verdict bug';
-        configEl.textContent = 'Configured tiers differ between frames: ' +
-            mismatched.map(function (s) { return s.frame.label; }).join(', ') +
+        configEl.textContent = 'Configured tiers differ between frames: ' + labels(mismatched) +
             ' \u2014 the tier definitions are not identical across frames.';
-    } else if (staleNewFrames.length) {
+    } else if (staleAuto.length) {
         configEl.className = 'verdict bug';
-        configEl.textContent = 'BUG \u2014 ' + staleNewFrames.map(function (s) { return s.frame.label; }).join(', ') +
-            ' was created after the consent change but was seeded with [' +
-            staleNewFrames[0].state.tiers.join(', ') + '] instead of [' + topState.tiers.join(', ') + '].';
+        configEl.textContent = 'BUG \u2014 ' + labels(staleAuto) +
+            ' was auto-installed after the consent change but seeded with [' +
+            staleAuto[0].state.tiers.join(', ') + '] instead of [' + topState.tiers.join(', ') + '].';
     } else {
         configEl.className = 'verdict ok';
         configEl.textContent = 'Every frame has identical configured tiers (' +
-            collectionNames(topState.collection).join(', ') + '), and frames created after a consent change inherit the current granted tiers.';
+            collectionNames(topState.collection).join(', ') + '), and auto-installed frames created after a ' +
+            'consent change inherit the current granted tiers.';
+    }
+
+    var selfFrames = ready.filter(function (s) { return s.frame.kind === 'self'; });
+
+    if (!selfFrames.length) {
+        selfEl.className = 'verdict wait';
+        selfEl.textContent = 'Waiting for a self-installing frame\u2026';
+    } else if (staleSelf.length) {
+        selfEl.className = 'verdict bug';
+        selfEl.textContent = 'BUG \u2014 ' + labels(staleSelf) + ' loaded its own snippet after the consent change ' +
+            'and is on [' + staleSelf[0].state.tiers.join(', ') + '] instead of [' + topState.tiers.join(', ') + ']. ' +
+            'It joined the channel after the broadcast, and nothing replays the current consent to a frame that ' +
+            'joins late, so it stays denied indefinitely.';
+    } else {
+        selfEl.className = 'verdict ok';
+        selfEl.textContent = 'Self-installing frames are on the current granted tiers (' +
+            topState.tiers.join(', ') + '), including any that joined after a consent change.';
     }
 
     var stuck = ready.filter(function (s) { return s.state.visitorId === COOKIELESS; });
@@ -454,7 +500,10 @@ function onReady() {
     logEvent('top frame ready \u2014 identifyRequested handler installed');
 }
 
-addFrame();
+// One of each at load. Both are on the channel before any consent change, so both should
+// track the top frame; the difference only shows up for frames added afterwards.
+addFrame(null, 'auto');
+addFrame(null, 'self');
 onReady();
 setInterval(refresh, 500);
 refresh();

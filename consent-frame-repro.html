@@ -104,6 +104,7 @@
         <button class="danger" onclick="resetAll()">Reset &amp; reload</button>
         <label class="inline"><input type="checkbox" id="sendidentity" checked> send identity with <code>updateCookieConsent</code></label>
         <label class="inline"><input type="checkbox" id="autoframe" checked> add one frame of each kind 2s after a consent change</label>
+        <label class="inline"><input type="checkbox" id="selfframes" onchange="toggleSelfFrames(this.checked)"> include self-installing frames (reloads)</label>
     </div>
 </div>
 
@@ -333,12 +334,28 @@ function addFrame(note, kind) {
     logEvent('added ' + label + ' (' + FRAME_KINDS[kind].what + ')' + (note ? ' \u2014 ' + note : ''));
 }
 
+
+var SELF_FRAMES_KEY = 'consent-frame-repro-selfframes';
+
+function selfFramesEnabled() {
+    try {
+        return localStorage.getItem(SELF_FRAMES_KEY) !== 'off';
+    } catch (e) { return true; }
+}
+
+function toggleSelfFrames(on) {
+    try {
+        localStorage.setItem(SELF_FRAMES_KEY, on ? 'on' : 'off');
+    } catch (e) { /* ignore */ }
+    location.reload();
+}
+
 function scheduleFrame() {
     if (!document.getElementById('autoframe').checked) return;
     logEvent('adding one frame of each kind in 2s to see what config they start with');
     setTimeout(function () {
         addFrame('created after the consent change', 'auto');
-        addFrame('created after the consent change', 'self');
+        if (selfFramesEnabled()) addFrame('created after the consent change', 'self');
     }, 2000);
 }
 
@@ -717,8 +734,16 @@ function onReady() {
 
 // One of each at load. Both are on the channel before any consent change, so both should
 // track the top frame; the difference only shows up for frames added afterwards.
+document.getElementById('selfframes').checked = selfFramesEnabled();
+
 addFrame(null, 'auto');
-addFrame(null, 'self');
+
+if (selfFramesEnabled()) {
+    addFrame(null, 'self');
+} else {
+    logEvent('self-installing frames are off \u2014 nothing here boots on the denying tier, so the ' +
+        'stored metadata hash should survive the grant', 'hi');
+}
 onReady();
 setInterval(refresh, 500);
 refresh();

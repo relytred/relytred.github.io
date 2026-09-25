@@ -71,7 +71,7 @@
     <ol class="steps">
         <li>Load this page. Every frame starts on <code>strictlyNecessary</code> (<code>trackVisitors: false</code>), so all of them collapse to <code>__cookieless_visitor__</code>.</li>
         <li>Click <strong>Grant identity consent</strong>. That calls <code>updateCookieConsent</code> in the top frame only, and two seconds later adds one frame of each kind.</li>
-        <li>The top frame fires <code>identifyRequested</code>; this page answers with <code>pendo.identify()</code> and the top frame picks up the real visitor ID.</li>
+        <li>The grant hands the visitor and account to <code>updateCookieConsent</code> as its second argument, so the top frame leaves <code>__cookieless_visitor__</code> on its own. Untick <strong>send identity</strong> to see it stay on the sentinel instead &mdash; a DNT session has no identity to resume, so nothing else can supply one.</li>
         <li>Check the table: existing frames stay on the sentinel, and the newly added frame is still seeded with the old granted tiers.</li>
         <li>
             Two kinds of child frame are under test. <strong>Auto-installed</strong> frames get the SDK from the top frame's
@@ -94,7 +94,7 @@
         <button onclick="addFrame('added by hand', 'self')">Add a self-installing frame now</button>
         <button onclick="identifyTop()">pendo.identify() in top frame</button>
         <button class="danger" onclick="resetAll()">Reset &amp; reload</button>
-        <label class="inline"><input type="checkbox" id="autorespond" checked> auto-respond to <code>identifyRequested</code></label>
+        <label class="inline"><input type="checkbox" id="sendidentity" checked> send identity with <code>updateCookieConsent</code></label>
         <label class="inline"><input type="checkbox" id="autoframe" checked> add one frame of each kind 2s after a consent change</label>
     </div>
 </div>
@@ -304,13 +304,33 @@ function scheduleFrame() {
 }
 
 // ── Controls ─────────────────────────────────────────────────
+// Same shape as pendo.initialize, so the metadata comes back with the ids rather than
+// just the visitor and account keys.
+function identityPayload() {
+    return {
+        visitor: { id: current.visitor, role: 'tester' },
+        account: { id: current.account, name: current.account }
+    };
+}
+
 function grant() {
-    logEvent("updateCookieConsent(['strictlyNecessary','functional']) in TOP frame", 'hi');
+    var tiers = ['strictlyNecessary', 'functional'];
+    var identity = document.getElementById('sendidentity').checked ? identityPayload() : undefined;
+
+    if (identity) {
+        logEvent("updateCookieConsent(['strictlyNecessary','functional'], { visitor: { id: '" +
+            current.visitor + "', role: 'tester' }, account: { id: '" + current.account + "' } }) in TOP frame", 'hi');
+    } else {
+        logEvent("updateCookieConsent(['strictlyNecessary','functional']) in TOP frame \u2014 no identity, " +
+            'so the visitor stays on the sentinel', 'warn');
+    }
+
     lastConsentChangeAt = Date.now();
-    pendo.updateCookieConsent(['strictlyNecessary', 'functional']);
+    pendo.updateCookieConsent(tiers, identity);
     scheduleFrame();
 }
 
+// Revoking never takes an identity -- the SDK clears the session instead.
 function deny() {
     logEvent("updateCookieConsent(['strictlyNecessary']) in TOP frame", 'warn');
     lastConsentChangeAt = Date.now();
@@ -483,21 +503,7 @@ function onReady() {
 
     pendo.enableLogging();
 
-    pendo.events.identifyRequested(function () {
-        logEvent('identifyRequested fired in TOP frame', 'hi');
-        if (!document.getElementById('autorespond').checked) {
-            logEvent('auto-respond is off \u2014 not calling identify()', 'warn');
-            return;
-        }
-        logEvent('responding with pendo.identify("' + current.visitor + '")');
-        pendo.identify(current.visitor, current.account);
-    });
-
-    document.addEventListener('pendo_identifyRequested', function (e) {
-        logEvent('DOM event pendo_identifyRequested (detail: ' + JSON.stringify(e.detail) + ')');
-    });
-
-    logEvent('top frame ready \u2014 identifyRequested handler installed');
+    logEvent('top frame ready');
 }
 
 // One of each at load. Both are on the channel before any consent change, so both should

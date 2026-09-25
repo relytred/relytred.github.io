@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Consent Frame Repro — consent does not propagate to child frames</title>
+<script src="./consent-frame-repro-beacons.js"></script>
 <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f4f5f7; color: #1a2332; padding: 24px; }
@@ -49,6 +50,7 @@
     #metadata { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 12px; }
     .metablock { border: 1px solid #dfe1e6; border-radius: 4px; overflow: hidden; }
     .metablock h3 { font-size: 10px; text-transform: uppercase; letter-spacing: .4px; color: #5e6c84; background: #f4f5f7; padding: 6px 8px; }
+    .metablock .hash { font-size: 10px; font-family: ui-monospace, Menlo, monospace; color: #5e6c84; padding: 5px 8px; border-bottom: 1px solid #f4f5f7; white-space: pre-wrap; word-break: break-all; }
     .metablock pre { font-family: ui-monospace, Menlo, monospace; font-size: 11px; line-height: 1.5; padding: 8px; margin: 0; max-height: 280px; overflow: auto; white-space: pre-wrap; word-break: break-word; }
 
     #frames { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 12px; }
@@ -117,6 +119,27 @@
             </tr>
         </thead>
         <tbody id="statetable"></tbody>
+    </table>
+</div>
+
+<div class="card">
+    <h2>Beacons sent, by frame</h2>
+    <div class="hint">
+        Every frame intercepts its own outbound requests to <code>/data/&hellip;</code> and inflates the
+        <code>jzb</code> payload, so an event is attributed to the frame that actually transmitted it.
+        <code>ptm</code> carries analytics events; a <code>meta</code> in the types column is a metadata event.
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Frame</th>
+                <th>Endpoint</th>
+                <th>Via</th>
+                <th>Event types</th>
+            </tr>
+        </thead>
+        <tbody id="beacontable"></tbody>
     </table>
 </div>
 
@@ -391,12 +414,110 @@ function readFrame(win) {
     } catch (e) { return null; }
 }
 
+function readBeacons(win) {
+    try {
+        return (win && win.__reproBeacons) || [];
+    } catch (e) { return []; }
+}
+
+var lastBeaconRender = '';
+
+function renderBeacons() {
+    var rows = [];
+
+    [{ label: 'Top', win: window }].concat(childFrames.map(function (frame) {
+        return { label: frame.label, win: frame.el.contentWindow };
+    })).forEach(function (source) {
+        readBeacons(source.win).forEach(function (beacon) {
+            rows.push({
+                label: source.label,
+                t: beacon.t,
+                target: beacon.target,
+                transport: beacon.transport,
+                // null while the payload is still inflating, {} once decoded with nothing in it
+                types: beacon.events
+                    ? (Object.keys(beacon.events).map(function (type) {
+                        return beacon.events[type] > 1 ? type + ' \u00d7' + beacon.events[type] : type;
+                    }).join(', ') || '(none)')
+                    : 'decoding\u2026'
+            });
+        });
+    });
+
+    rows.sort(function (a, b) { return a.t - b.t; });
+
+    var signature = JSON.stringify(rows);
+    if (signature === lastBeaconRender) return;
+    lastBeaconRender = signature;
+
+    var tbody = document.getElementById('beacontable');
+    tbody.innerHTML = '';
+
+    if (!rows.length) {
+        var empty = document.createElement('tr');
+        var td = cell('No beacons yet. Every frame boots denied, so nothing is transmitted until you grant.');
+        td.colSpan = 5;
+        empty.appendChild(td);
+        tbody.appendChild(empty);
+        return;
+    }
+
+    rows.forEach(function (row) {
+        var tr = document.createElement('tr');
+        var isMeta = row.types.indexOf('meta') !== -1;
+
+        tr.appendChild(cell(new Date(row.t).toLocaleTimeString()));
+        tr.appendChild(cell(row.label, 'who'));
+        tr.appendChild(cell(row.target));
+        tr.appendChild(cell(row.transport));
+        tr.appendChild(cell(row.types, isMeta ? 'differs' : ''));
+
+        tbody.appendChild(tr);
+    });
+}
+
 function readMetadata(win) {
     try {
         var p = win && win.pendo;
         if (!p || typeof p.getSerializedMetadata !== 'function') return null;
         return p.getSerializedMetadata();
     } catch (e) { return null; }
+}
+
+// Values are wrapped as {ttl, value}; older writes may be bare.
+function unwrapStored(raw) {
+    try {
+        var parsed = JSON.parse(raw);
+        return String(parsed && parsed.value !== undefined ? parsed.value : raw);
+    } catch (e) { return String(raw); }
+}
+
+// Every _pendo* key the SDK persisted, rather than just the metadata hash. Listing them all
+// separates "this frame cannot persist anything" from "this frame persisted ids but not the
+// meta hash" -- the latter would mean the hash write specifically is being skipped.
+function readPendoStorage(win) {
+    var found = [];
+
+    try {
+        var ls = win.localStorage;
+        for (var i = 0; i < ls.length; i++) {
+            var k = ls.key(i);
+            if (k.indexOf('_pendo') === 0) found.push('local  ' + k + ' = ' + unwrapStored(ls.getItem(k)));
+        }
+    } catch (e) { found.push('(localStorage unreadable)'); }
+
+    try {
+        win.document.cookie.split('; ').forEach(function (pair) {
+            var split = pair.indexOf('=');
+            if (split < 1) return;
+            var k = pair.slice(0, split);
+            if (k.indexOf('_pendo') === 0) {
+                found.push('cookie ' + k + ' = ' + unwrapStored(decodeURIComponent(pair.slice(split + 1))));
+            }
+        });
+    } catch (e) { found.push('(cookies unreadable)'); }
+
+    return found.length ? found.sort() : ['(no _pendo keys stored)'];
 }
 
 // Rebuilding every 500ms would throw away the scroll position in each block, so only redraw
@@ -410,6 +531,7 @@ function renderMetadata() {
         var meta = readMetadata(entry.win);
         return {
             label: entry.label,
+            stored: readPendoStorage(entry.win),
             text: meta ? JSON.stringify(meta, null, 2) : 'Web SDK not installed yet'
         };
     });
@@ -424,13 +546,19 @@ function renderMetadata() {
     entries.forEach(function (entry) {
         var block = document.createElement('div');
         var title = document.createElement('h3');
+        var hash = document.createElement('div');
         var body = document.createElement('pre');
 
         block.className = 'metablock';
         title.textContent = entry.label;
+
+        hash.className = 'hash';
+        hash.textContent = entry.stored.join('\n');
+
         body.textContent = entry.text;
 
         block.appendChild(title);
+        block.appendChild(hash);
         block.appendChild(body);
         host.appendChild(block);
     });
@@ -494,6 +622,7 @@ function refresh() {
 
     updateVerdicts(topState, states);
     renderMetadata();
+    renderBeacons();
 }
 
 function labels(entries) {

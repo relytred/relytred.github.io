@@ -358,6 +358,30 @@
 
         document.addEventListener('DOMContentLoaded', startPopoverRotation);
 
+        // Pendo Track Event: designer_launch_attempted. Returns a reporter for one launch attempt that sends
+        // its outcome once. The context is captured up front, so field edits made before an async outcome
+        // arrives don't skew it.
+        function designerLaunchReporter(launchMethod, targetOrigin, appId, guideId, stepId) {
+            const context = {
+                launchMethod: launchMethod,
+                targetOrigin: targetOrigin,
+                hasGuideId: !!guideId,
+                hasStepId: !!stepId,
+                hasAppId: !!appId
+            };
+            const startedAt = Date.now();
+            let reported = false;
+
+            return function(outcome, extra) {
+                if (reported) return;
+                reported = true;
+                pendo.track('designer_launch_attempted', Object.assign({
+                    outcome: outcome,
+                    timeToOutcomeMs: Date.now() - startedAt
+                }, context, extra || {}));
+            };
+        }
+
         function launchDesigner() {
             const url     = document.getElementById('dlUrl').value.trim();
             const appId   = document.getElementById('dlAppId').value.trim();
@@ -368,6 +392,7 @@
             if (!url) { alert('Target URL is required'); return; }
 
             const targetOrigin = new URL(url).origin;
+            const reportOutcome = designerLaunchReporter('url_token', targetOrigin, appId, guideId, stepId);
 
             const token = {
                 type: 'guide',
@@ -394,11 +419,13 @@
             if (!appWindow) {
                 status.textContent = 'Popup blocked — allow popups and retry';
                 status.className = 'dl-status error';
+                reportOutcome('popup_blocked');
                 return;
             }
 
             status.textContent = 'Launched — designer should load via URL token';
             status.className = 'dl-status launched';
+            reportOutcome('launched');
         }
 
         function launchDesignerPostMessage() {
@@ -411,6 +438,7 @@
             if (!url) { alert('Target URL is required'); return; }
 
             const origin = new URL(url).origin;
+            const reportOutcome = designerLaunchReporter('post_message', origin, appId, guideId, stepId);
 
             function buildToken() {
                 return {
@@ -438,6 +466,7 @@
             if (!popup) {
                 status.textContent = 'Popup blocked — allow popups and retry';
                 status.className = 'dl-status error';
+                reportOutcome('popup_blocked');
                 return;
             }
 
@@ -450,10 +479,14 @@
                     status.textContent = 'Designer launched via postMessage!';
                     status.className = 'dl-status launched';
                     window.removeEventListener('message', handler);
+                    reportOutcome('launched');
                 } else if (ev.data.type === 'pendo-designer-launch::error') {
                     status.textContent = 'Launch rejected: ' + (ev.data.reason || 'unknown');
                     status.className = 'dl-status error';
                     window.removeEventListener('message', handler);
+                    reportOutcome('rejected', {
+                        rejectionReason: String(ev.data.reason || 'unknown').slice(0, 100)
+                    });
                 }
             }
 
@@ -465,6 +498,8 @@
                     status.textContent = 'Timed out — no pendo::ready or postMessage response';
                     status.className = 'dl-status error';
                 }
+                // No-op when this attempt already launched or was rejected
+                reportOutcome('timed_out');
             }, 15000);
         }
 
@@ -689,6 +724,19 @@
 
                 if (expiryHours > 0) saveSession(session);
                 activateSession(session);
+
+                // Track Event: tester identified through the form (sessions restored on load skip this handler).
+                // Sent after activateSession() so it's attributed to the new visitor. Skipped in DNT mode,
+                // which is guide-analytics-only.
+                if (!session.doNotTrack) {
+                    pendo.track('visitor_session_started', {
+                        hasAccountId: !!session.accountId,
+                        sessionPersisted: expiryHours > 0,
+                        expiryHours: expiryHours,
+                        cookieConsentTiers: session.cookieConsentTiers.join(',').slice(0, 200),
+                        consentTierCount: session.cookieConsentTiers.length
+                    });
+                }
             });
 
             document.getElementById('clearSessionBtn').addEventListener('click', clearSession);
@@ -699,6 +747,16 @@
                 const status = document.getElementById('sfStatus');
 
                 console.log('simple form submit', values);
+
+                // Track Event: simple form submitted. Only the topic and presence/length flags are sent,
+                // never the name, email or message text.
+                pendo.track('feedback_form_submitted', {
+                    topic: values.topic, // 'feedback' | 'bug' | 'feature'
+                    messageLength: (values.message || '').trim().length,
+                    hasName: !!(values.name || '').trim(),
+                    hasEmail: !!(values.email || '').trim()
+                });
+
                 status.textContent = 'Submitted ' + JSON.stringify(values);
                 status.className = 'dl-status launched';
             });

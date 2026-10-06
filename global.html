@@ -371,6 +371,14 @@
                 const expiresAt = expiryHours > 0 ? Date.now() + expiryHours * 60 * 60 * 1000 : null;
                 if (expiryHours > 0) saveSession(visitorId, accountId, expiryHours);
                 activateSession(visitorId, accountId, expiresAt);
+
+                // Track Event: tester identified through the form (sessions restored on load skip this handler).
+                // Sent after activateSession() so it's attributed to the new visitor. The agent is `blobbo` here.
+                blobbo.track('visitor_session_started', {
+                    hasAccountId: !!accountId,
+                    sessionPersisted: expiryHours > 0,
+                    expiryHours: expiryHours
+                });
             });
 
             document.getElementById('clearSessionBtn').addEventListener('click', clearSession);

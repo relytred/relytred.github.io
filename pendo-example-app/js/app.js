@@ -28,7 +28,17 @@ let department = getCookie(departmentCookie);
 let loginForm = $('#login');
 loginForm.addEventListener('submit', function (submitEvent) {
     submitEvent.preventDefault();
-    login(getLoginFormData());
+    const formData = getLoginFormData();
+    login(formData);
+
+    // Track Event: explicit form login only (the cookie auto-login on page load doesn't come through here).
+    // Sent after login(), which calls pendo.initialize(), so the event is attributed to the new visitor.
+    if (formData.email && formData.department) {
+        pendo.track('user_logged_in', {
+            department: formData.department,
+            emailDomain: (formData.email.split('@')[1] || '').toLowerCase()
+        });
+    }
 });
 $('#logout').addEventListener('click', logout);
 function logout() {
@@ -146,7 +156,7 @@ for (var i = 0; i < increments.length; i++) {
         let wheelIndex = parseInt(this.getAttribute('index'));
         combinationLock.increment(wheelIndex);
         document.querySelectorAll('.digit')[wheelIndex].value = combinationLock.wheels[wheelIndex];
-        checkLock();
+        checkLock('button');
     });
 }
 
@@ -158,7 +168,7 @@ for (var i = 0; i < decrements.length; i++) {
         let wheelIndex = parseInt(this.getAttribute('index'));
         combinationLock.decrement(wheelIndex);
         document.querySelectorAll('.digit')[wheelIndex].value = combinationLock.wheels[wheelIndex];
-        checkLock();
+        checkLock('button');
     });
 }
 
@@ -172,7 +182,7 @@ for (var i = 0; i < wheels.length; i++) {
             let wheelIndex = parseInt(this.getAttribute('index'));
             combinationLock.increment(wheelIndex);
             document.querySelectorAll('.digit')[wheelIndex].value = combinationLock.wheels[wheelIndex];
-            checkLock();
+            checkLock('arrow_key');
         }
 
         // arrow key down
@@ -180,14 +190,14 @@ for (var i = 0; i < wheels.length; i++) {
             let wheelIndex = parseInt(this.getAttribute('index'));
             combinationLock.decrement(wheelIndex);
             document.querySelectorAll('.digit')[wheelIndex].value = combinationLock.wheels[wheelIndex];
-            checkLock();
+            checkLock('arrow_key');
         }
 
         // number key (0 - 9)
         if (e.which > 47 && e.which < 58) {
             let wheelIndex = parseInt(this.getAttribute('index'));
             combinationLock.wheels[wheelIndex] = parseInt(document.querySelectorAll('.digit')[wheelIndex].value);
-            checkLock();
+            checkLock('number_key');
         }
 
         // if number is longer than 1 digit
@@ -202,13 +212,31 @@ for (var i = 0; i < wheels.length; i++) {
     });
 }
 
+// Pendo Track Event state for combination_lock_unlocked
+let wheelChangeCount = 0;
+let answerRevealed = false; // set when the HINT button's second click shows the combination
+const pageLoadedAt = Date.now();
+
 // Check lock
-function checkLock() {
+function checkLock(inputMethod) {
+    wheelChangeCount++;
+    const wasLocked = combinationLock.locked;
     combinationLock.check();
     if (combinationLock.locked === false) {
         document.querySelector('#indicator').classList.remove('locked');
         document.querySelector('#indicator').classList.add('unlocked');
         activatePank();
+
+        // Track Event: lock flipped from locked to unlocked (checkLock runs after every wheel change)
+        if (wasLocked) {
+            pendo.track('combination_lock_unlocked', {
+                inputMethod: inputMethod, // 'button' | 'arrow_key' | 'number_key'
+                wheelChangeCount: wheelChangeCount,
+                hintUsed: shownHint,
+                answerRevealed: answerRevealed,
+                timeToUnlockMs: Date.now() - pageLoadedAt
+            });
+        }
     } else {
         document.querySelector('#indicator').classList.add('locked');
         document.querySelector('#indicator').classList.remove('unlocked');
@@ -239,6 +267,7 @@ function $(selector) {
 let shownHint = false;
 $('#hint').addEventListener('click', (evt) => {
     if (shownHint) {
+        answerRevealed = true;
         alert(`The combination is 1-2-3-4`);
     } else {
         alert(`That's the kinda thing an idiot would have on his luggage!`);

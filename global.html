@@ -338,10 +338,20 @@
             return expiresAt ? new Date(expiresAt).toLocaleString() : 'this session only';
         }
 
-        function activateSession(visitorId, accountId, expiresAt) {
+        // source: 'form' | 'restored_session'. expiryHours is only known for form submissions.
+        function activateSession(visitorId, accountId, expiresAt, source, expiryHours = null) {
             blobbo.initialize({
                 visitor: { id: visitorId },
                 account: { id: accountId || 'no-account' }
+            });
+
+            // Same event as vds.html, sent through this page's custom global key. There are no
+            // doNotTrack or consent tier options here, so those properties are left out.
+            blobbo.track('visitor_identified', {
+                identificationSource: source,
+                hasAccountId: !!accountId,
+                sessionPersisted: !!expiresAt,
+                expiryHours: expiryHours
             });
 
             document.getElementById('idOverlay').classList.add('hidden');
@@ -370,14 +380,14 @@
 
                 const expiresAt = expiryHours > 0 ? Date.now() + expiryHours * 60 * 60 * 1000 : null;
                 if (expiryHours > 0) saveSession(visitorId, accountId, expiryHours);
-                activateSession(visitorId, accountId, expiresAt);
+                activateSession(visitorId, accountId, expiresAt, 'form', expiryHours);
             });
 
             document.getElementById('clearSessionBtn').addEventListener('click', clearSession);
 
             const session = loadSession();
             if (session) {
-                activateSession(session.visitorId, session.accountId, session.expiresAt);
+                activateSession(session.visitorId, session.accountId, session.expiresAt, 'restored_session');
             }
         });
     </script>

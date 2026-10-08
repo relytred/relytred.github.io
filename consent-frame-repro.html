@@ -401,6 +401,17 @@ function grant() {
 
     lastConsentChangeAt = Date.now();
     pendo.updateCookieConsent(tiers, identity);
+
+    // After the grant -- the boot tier (strictlyNecessary) has analytics disabled, so an earlier
+    // call would be dropped. The beacon table below confirms it left the browser.
+    pendo.track('cookie_consent_granted', {
+        grantedTiers: tiers.join(','),
+        identitySent: !!identity,
+        autoFrameEnabled: document.getElementById('autoframe').checked,
+        selfFramesEnabled: selfFramesEnabled(),
+        childFrameCount: childFrames.length
+    });
+
     scheduleFrame();
 }
 
@@ -408,6 +419,17 @@ function grant() {
 function deny() {
     logEvent("updateCookieConsent(['strictlyNecessary']) in TOP frame", 'warn');
     lastConsentChangeAt = Date.now();
+
+    // Before the revoke -- afterwards analytics and trackEvents are off for strictlyNecessary and
+    // the session is cleared, so a later call would be dropped.
+    var topState = readFrame(window);
+    pendo.track('cookie_consent_revoked', {
+        previousTiers: topState ? topState.tiers.join(',') : '',
+        newTiers: 'strictlyNecessary',
+        childFrameCount: childFrames.length,
+        autoFrameEnabled: document.getElementById('autoframe').checked
+    });
+
     pendo.updateCookieConsent(['strictlyNecessary']);
     scheduleFrame();
 }
@@ -646,6 +668,29 @@ function labels(entries) {
     return entries.map(function (s) { return s.frame.label; }).join(', ');
 }
 
+// Verdicts that were 'bug' on the previous refresh, keyed by verdictType. refresh() re-evaluates
+// every verdict every 500ms, so only one that has just turned into a bug is reported.
+var lastBugVerdicts = {};
+
+function reportNewBugVerdicts(topState, bugs) {
+    Object.keys(bugs).forEach(function (verdictType) {
+        if (lastBugVerdicts[verdictType]) return;
+
+        var affected = bugs[verdictType];
+        pendo.track('consent_propagation_bug_reproduced', {
+            verdictType: verdictType, // 'config_mismatch' | 'stale_auto_frame' | 'stale_self_frame' | 'identity'
+            affectedFrames: labels(affected).slice(0, 200),
+            affectedFrameCount: affected.length,
+            grantedTiers: topState.tiers.join(','),
+            msSinceConsentChange: lastConsentChangeAt ? Date.now() - lastConsentChangeAt : null,
+            selfFramesEnabled: selfFramesEnabled(),
+            agentSource: current.agent === CDN_AGENT ? 'cdn' : (current.agent === LOCAL_AGENT ? 'local' : 'custom')
+        });
+    });
+
+    lastBugVerdicts = bugs;
+}
+
 function updateVerdicts(topState, states) {
     var configEl = document.getElementById('verdict-config');
     var selfEl = document.getElementById('verdict-selfinstall');
@@ -656,8 +701,12 @@ function updateVerdicts(topState, states) {
         configEl.className = selfEl.className = identityEl.className = 'verdict wait';
         configEl.textContent = selfEl.textContent = identityEl.textContent =
             'Waiting for frames to install the Web SDK\u2026';
+        lastBugVerdicts = {};
         return;
     }
+
+    // The frames behind each verdict currently showing 'bug', keyed by verdictType.
+    var bugs = {};
 
     var topSignature = collectionSignature(topState.collection);
     var mismatched = ready.filter(function (s) { return collectionSignature(s.state.collection) !== topSignature; });
@@ -675,10 +724,12 @@ function updateVerdicts(topState, states) {
     var staleSelf = stale.filter(function (s) { return s.frame.kind === 'self'; });
 
     if (mismatched.length) {
+        bugs.config_mismatch = mismatched;
         configEl.className = 'verdict bug';
         configEl.textContent = 'Configured tiers differ between frames: ' + labels(mismatched) +
             ' \u2014 the tier definitions are not identical across frames.';
     } else if (staleAuto.length) {
+        bugs.stale_auto_frame = staleAuto;
         configEl.className = 'verdict bug';
         configEl.textContent = 'BUG \u2014 ' + labels(staleAuto) +
             ' was auto-installed after the consent change but seeded with [' +
@@ -696,6 +747,7 @@ function updateVerdicts(topState, states) {
         selfEl.className = 'verdict wait';
         selfEl.textContent = 'Waiting for a self-installing frame\u2026';
     } else if (staleSelf.length) {
+        bugs.stale_self_frame = staleSelf;
         selfEl.className = 'verdict bug';
         selfEl.textContent = 'BUG \u2014 ' + labels(staleSelf) + ' loaded its own snippet after the consent change ' +
             'and is on [' + staleSelf[0].state.tiers.join(', ') + '] instead of [' + topState.tiers.join(', ') + ']. ' +
@@ -713,6 +765,7 @@ function updateVerdicts(topState, states) {
         identityEl.className = 'verdict wait';
         identityEl.textContent = 'All frames are on the DNT sentinel. Click "Grant identity consent" to start.';
     } else if (topState.visitorId !== COOKIELESS && stuck.length) {
+        bugs.identity = stuck;
         identityEl.className = 'verdict bug';
         identityEl.textContent = 'BUG REPRODUCED \u2014 the top frame is identified as "' + topState.visitorId +
             '" but ' + stuck.map(function (s) { return s.frame.label; }).join(', ') +
@@ -721,6 +774,8 @@ function updateVerdicts(topState, states) {
         identityEl.className = 'verdict ok';
         identityEl.textContent = 'Every frame is identified as "' + topState.visitorId + '".';
     }
+
+    reportNewBugVerdicts(topState, bugs);
 }
 
 // ── Wire up once the SDK is ready ────────────────────────────

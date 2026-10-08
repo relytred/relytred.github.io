@@ -383,6 +383,28 @@ pendo.initialize({
     // ── Debug overlay ──────────────────────────────────────────
     var loadGuidesCallCount = 0;
 
+    // Shared by the DOM poll and the guidesLoaded hook: report once each time the count goes
+    // above 1, whichever notices first, and re-arm once it drops back.
+    var duplicateBasesReported = false;
+
+    function reportDuplicateBases(count, detectedVia) {
+        if (count <= 1) {
+            duplicateBasesReported = false;
+            return;
+        }
+        if (duplicateBasesReported) return;
+        duplicateBasesReported = true;
+
+        pendo.track('guide_reload_bug_reproduced', {
+            pendoBaseCount: count,
+            loadGuidesCallCount: loadGuidesCallCount,
+            urlChangeTriggerCount: triggerCount,
+            slowModeOn: slowModeOn,
+            currentAccount: currentAccount,
+            detectedVia: detectedVia // 'dom_poll' | 'guidesLoaded'
+        });
+    }
+
     function updateDebugBar() {
         // Use attribute selector so duplicate ids (the bug!) are all counted
         var bases = document.querySelectorAll('[id="pendo-base"]');
@@ -394,6 +416,7 @@ pendo.initialize({
             el.textContent = count + ' ← BUG REPRODUCED!';
         }
         document.getElementById('debug-url').textContent = window.location.href;
+        reportDuplicateBases(count, 'dom_poll');
     }
 
     // Poll DOM for pendo-base count changes
@@ -421,6 +444,7 @@ pendo.initialize({
             if (bases.length > 1) {
                 console.warn('[REPRO] ⚠️  BUG: ' + bases.length + ' pendo-base elements in DOM');
             }
+            reportDuplicateBases(bases.length, 'guidesLoaded');
         });
         console.log('[REPRO] Hooks installed. loadGuides and guidesLoaded are being monitored.');
     }

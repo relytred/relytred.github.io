@@ -376,20 +376,41 @@
             var ref = document.getElementById('guide-ref').value.trim();
             if (!ref) return log('enter a guide id or name first');
 
+            var guides = [];
+            var byId;
+            var shown = false;
+            var errorMessage = null;
+
             try {
-                var guides = window.pendo.getActiveGuides() || [];
-                var byId = guides.filter(function(g) { return g.id === ref; })[0];
+                guides = window.pendo.getActiveGuides() || [];
+                byId = guides.filter(function(g) { return g.id === ref; })[0];
 
                 if (byId) {
-                    window.pendo.showGuideById(ref);
+                    shown = window.pendo.showGuideById(ref);
                 } else {
-                    window.pendo.showGuideByName(ref);
+                    shown = window.pendo.showGuideByName(ref);
                 }
 
                 log('asked to show "' + ref + '"');
             } catch (e) {
+                errorMessage = e.message;
                 log('could not show guide: ' + e.message);
             }
+
+            // Whether on-demand display worked, and whether the guide's first step can reach the
+            // top layer at all (attributes.popover.enabled).
+            var guide = byId || guides.filter(function(g) { return g.name === ref; })[0];
+            var step = guide && guide.steps && guide.steps[0];
+
+            window.pendo.track('guide_show_requested', {
+                lookupMethod: byId ? 'id' : 'name',
+                guideRef: ref.slice(0, 100),
+                shown: !!shown,
+                activeGuideCount: guides.length,
+                guideFoundInActiveGuides: !!guide,
+                popoverEnabled: !!(step && step.attributes && step.attributes.popover && step.attributes.popover.enabled),
+                errorMessage: errorMessage && errorMessage.slice(0, 150)
+            });
         }
 
         function listGuides() {
@@ -456,7 +477,8 @@
 
             return {
                 text: describe(nearestIdentified(hit)) + (isGuide ? '  (guide is on top)' : '  (guide is covered)'),
-                state: isGuide ? 'ok' : 'bad'
+                state: isGuide ? 'ok' : 'bad',
+                hit: hit
             };
         }
 
@@ -477,6 +499,9 @@
             el.className = state || '';
         }
 
+        // refresh() runs every 250ms, so the covered state is reported only when it first turns 'bad'.
+        var lastTopmostState = '';
+
         function refresh() {
             var topmost = topmostAtGuideCenter();
             set('d-topmost', topmost.text, topmost.state);
@@ -494,6 +519,18 @@
             set('d-popovers', listOpen(':popover-open'));
             set('d-dialogs', listOpen('dialog:modal'));
             set('d-fullscreen', describe(document.fullscreenElement));
+
+            if (topmost.state === 'bad' && lastTopmostState !== 'bad') {
+                window.pendo.track('guide_covered_by_top_layer', {
+                    coveringElement: describe(nearestIdentified(topmost.hit)),
+                    openPopovers: listOpen(':popover-open'),
+                    modalDialogs: listOpen('dialog:modal'),
+                    fullscreenElement: describe(document.fullscreenElement),
+                    guideRootPopover: root ? (root.getAttribute('popover') || 'none') : 'not_rendered',
+                    warMode: war
+                });
+            }
+            lastTopmostState = topmost.state;
         }
 
         // A synchronous hidePopover() + showPopover() queues only ONE toggle task, which the spec
@@ -501,6 +538,7 @@
         // not as a closed/open pair. Counting closed -> open would miss every one of them.
         var shows = 0;
         var reRaises = 0;
+        var reRaiseLoopReported = false;
 
         document.addEventListener('toggle', function(evt) {
             var root = guideRoot();
@@ -515,6 +553,18 @@
             }
 
             set('d-reraises', reRaises + ' re-raised, ' + shows + ' shown', reRaises > 20 ? 'bad' : '');
+
+            // Once per page load, the first time the counter passes the threshold flagged red above.
+            if (reRaises > 20 && !reRaiseLoopReported) {
+                reRaiseLoopReported = true;
+                window.pendo.track('guide_reraise_loop_detected', {
+                    reRaiseCount: reRaises,
+                    showCount: shows,
+                    warMode: war,
+                    openPopovers: listOpen(':popover-open'),
+                    guideRootPopover: root.getAttribute('popover') || 'none'
+                });
+            }
         }, true);
 
         var lines = [];

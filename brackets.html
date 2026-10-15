@@ -227,6 +227,9 @@
 
         let zoom = 1;
 
+        // Set when a bracket is loaded from a file; cleared when the board is wiped.
+        let bracketWasImported = false;
+
         function log2(n) {
             return Math.round(Math.log(n) / Math.LN2);
         }
@@ -427,8 +430,14 @@
         }
 
         /* ── Actions ──────────────────────────────────────────── */
+        // Non-empty slots in a list of slots -- how much of a bracket has been filled in.
+        function countFilled(slots) {
+            return slots.filter(function(value) { return value.trim(); }).length;
+        }
+
         function resize(size) {
             const previous = state.rounds[0];
+            const advancedEntriesCleared = countFilled(state.rounds.slice(1).flat());
             state.size = size;
             state.rounds = emptyRounds(size);
 
@@ -439,6 +448,14 @@
             render();
             autoFit();
             setStatus(size + ' entries — later rounds were cleared');
+
+            pendo.track('bracket_resized', {
+                previousSize: previous.length,
+                newSize: size,
+                entriesCarriedOver: countFilled(previous.slice(0, size)),
+                entriesDropped: countFilled(previous.slice(size)),
+                advancedEntriesCleared: advancedEntriesCleared
+            });
         }
 
         function randomize() {
@@ -456,16 +473,27 @@
                 entries[j] = swap;
             }
 
+            const advancedEntriesCleared = countFilled(state.rounds.slice(1).flat());
+
             for (let level = 1; level < state.rounds.length; level++) {
                 state.rounds[level].fill('');
             }
 
             render();
             setStatus('Shuffled the first round and cleared every round after it', 'ok');
+
+            const filledEntryCount = countFilled(entries);
+            pendo.track('bracket_randomized', {
+                bracketSize: state.size,
+                filledEntryCount: filledEntryCount,
+                emptySlotCount: entries.length - filledEntryCount,
+                advancedEntriesCleared: advancedEntriesCleared
+            });
         }
 
         function clearAll() {
             state.rounds = emptyRounds(state.size);
+            bracketWasImported = false;
             render();
             setStatus('Cleared');
         }
@@ -491,6 +519,18 @@
             URL.revokeObjectURL(url);
 
             setStatus('Downloaded ' + link.download, 'ok');
+
+            pendo.track('bracket_exported', {
+                format: 'json',
+                schemaVersion: payload.version,
+                fileName: link.download.slice(0, 100),
+                bracketSize: state.size,
+                filledEntryCount: countFilled(state.rounds[0]),
+                advancedEntryCount: countFilled(state.rounds.slice(1).flat()),
+                championSet: !!state.rounds[state.rounds.length - 1][0].trim(),
+                hasTitle: !!state.title.trim(),
+                hasFooter: !!state.footer.trim()
+            });
         }
 
         // Returns { rounds, size } or throws with a message worth showing the user.
@@ -532,6 +572,17 @@
         function upload(file) {
             const reader = new FileReader();
 
+            // errorMessage is the same text the status line shows the user.
+            function trackImportFailed(failureStage, errorMessage) {
+                pendo.track('bracket_import_failed', {
+                    failureStage: failureStage,
+                    errorMessage: errorMessage.slice(0, 150),
+                    fileName: file.name.slice(0, 100),
+                    fileSizeBytes: file.size,
+                    fileType: file.type
+                });
+            }
+
             reader.onload = function() {
                 let bracket;
 
@@ -539,8 +590,11 @@
                     bracket = parseBracket(reader.result);
                 } catch (e) {
                     setStatus('Could not load ' + file.name + ': ' + e.message, 'error');
+                    trackImportFailed(e instanceof SyntaxError ? 'parse' : 'validate', e.message);
                     return;
                 }
+
+                const previousSize = state.size;
 
                 state.size = bracket.size;
                 state.rounds = bracket.rounds;
@@ -554,9 +608,25 @@
                 render();
                 autoFit();
                 setStatus('Loaded ' + file.name + ' — ' + bracket.size + ' entries', 'ok');
+
+                bracketWasImported = true;
+                pendo.track('bracket_imported', {
+                    fileName: file.name.slice(0, 100),
+                    fileSizeBytes: file.size,
+                    bracketSize: bracket.size,
+                    previousBracketSize: previousSize,
+                    filledEntryCount: countFilled(bracket.rounds[0]),
+                    advancedEntryCount: countFilled(bracket.rounds.slice(1).flat()),
+                    championSet: !!bracket.rounds[bracket.rounds.length - 1][0].trim(),
+                    hasTitle: !!bracket.title.trim(),
+                    hasFooter: !!bracket.footer.trim()
+                });
             };
 
-            reader.onerror = function() { setStatus('Could not read ' + file.name, 'error'); };
+            reader.onerror = function() {
+                setStatus('Could not read ' + file.name, 'error');
+                trackImportFailed('read', reader.error ? reader.error.name : 'unknown');
+            };
             reader.readAsText(file);
         }
 
@@ -587,8 +657,33 @@
                 if (level >= state.rounds.length) return;
 
                 const index = Math.floor(Number(slot.dataset.index) / 2);
+                const previousValue = state.rounds[level][index];
                 state.rounds[level][index] = slot.value;
                 area.querySelector('[data-level="' + level + '"][data-index="' + index + '"]').value = slot.value;
+
+                // Double-clicking an entry that already moved up changes nothing, so it isn't an advance.
+                if (previousValue === slot.value) return;
+
+                const isChampion = level === state.rounds.length - 1;
+
+                pendo.track('bracket_entry_advanced', {
+                    fromRound: level,
+                    toRound: level + 1,
+                    totalRounds: state.rounds.length,
+                    bracketSize: state.size,
+                    isChampion: isChampion,
+                    replacedExistingEntry: !!previousValue.trim()
+                });
+
+                if (isChampion) {
+                    pendo.track('bracket_champion_crowned', {
+                        bracketSize: state.size,
+                        filledEntryCount: countFilled(state.rounds[0]),
+                        advancedEntryCount: countFilled(state.rounds.slice(1).flat()),
+                        hasTitle: !!state.title.trim(),
+                        wasImported: bracketWasImported
+                    });
+                }
             });
 
             document.getElementById('boardTitle').addEventListener('input', function(e) { state.title = e.target.value; });

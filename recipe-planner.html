@@ -6,6 +6,31 @@
     <title>Recipe & Meal Planner</title>
     <link rel="stylesheet" href="static/css/recipe-planner.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Pendo agent -- same install as vds.html. Defines the queued pendo stub before recipe-planner.js runs. -->
+    <script>
+        (function(apiKey){
+            (function(p,e,n,d,o){var v,w,x,y,z;o=p[d]=p[d]||{};o._q=o._q||[];
+            v=['initialize','identify','updateOptions','pageLoad','track'];for(w=0,x=v.length;w<x;++w)(function(m){
+                o[m]=o[m]||function(){o._q[m===v[0]?'unshift':'push']([m].concat([].slice.call(arguments,0)));};})(v[w]);
+                y=e.createElement(n);y.async=!0;y.src='https://cdn.pendo-atlas.pendo-dev.com/agent/static/'+apiKey+'/pendo.js';
+                z=e.getElementsByTagName(n)[0];z.parentNode.insertBefore(y,z);})(window,document,'script','pendo');
+        })('bc842892-890f-45bc-4104-bb08da92ddb4');
+
+        // Reuses whatever session vds.html stored, so the pages identify as the same visitor.
+        (function initPendo() {
+            let session = null;
+            try {
+                const raw = localStorage.getItem('pendo_session');
+                const parsed = raw && JSON.parse(raw);
+                if (parsed && Date.now() < parsed.expiresAt) session = parsed;
+            } catch {}
+
+            pendo.initialize({
+                visitor: { id: session ? session.visitorId : 'recipe-planner-anon' },
+                account: { id: (session && session.accountId) || 'no-account' }
+            });
+        })();
+    </script>
 </head>
 <body>
     <div class="app-container">

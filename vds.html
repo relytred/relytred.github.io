@@ -358,16 +358,55 @@
 
         document.addEventListener('DOMContentLoaded', startPopoverRotation);
 
+        // Tracks one designer launch attempt as designer_launched / designer_launch_failed. Only
+        // flags whether an app, guide or step was targeted, never the ids themselves.
+        function designerLaunchTracker(launchMethod, appId, guideId, stepId) {
+            function props(targetOrigin, details) {
+                return Object.assign({
+                    launchMethod: launchMethod,
+                    targetOrigin: targetOrigin || null,
+                    hasAppId: !!appId,
+                    hasGuideId: !!guideId,
+                    hasStepId: !!stepId
+                }, details);
+            }
+
+            return {
+                launched(targetOrigin, confirmedReady, handshakeMs) {
+                    pendo.track('designer_launched', props(targetOrigin, {
+                        confirmedReady: confirmedReady,
+                        handshakeMs: handshakeMs
+                    }));
+                },
+                // failureReason: 'missing_url' | 'invalid_url' | 'popup_blocked' | 'rejected' | 'timeout'
+                failed(failureReason, targetOrigin, details) {
+                    pendo.track('designer_launch_failed', props(targetOrigin, Object.assign({
+                        failureReason: failureReason,
+                        rejectionReason: null,
+                        pendoReadyReceived: null
+                    }, details)));
+                }
+            };
+        }
+
         function launchDesigner() {
             const url     = document.getElementById('dlUrl').value.trim();
             const appId   = document.getElementById('dlAppId').value.trim();
             const guideId = document.getElementById('dlGuideId').value.trim();
             const stepId  = document.getElementById('dlStepId').value.trim();
             const status  = document.getElementById('dlStatus');
+            const tracker = designerLaunchTracker('url_token', appId, guideId, stepId);
 
-            if (!url) { alert('Target URL is required'); return; }
+            if (!url) { tracker.failed('missing_url'); alert('Target URL is required'); return; }
 
-            const targetOrigin = new URL(url).origin;
+            let targetOrigin;
+            try {
+                targetOrigin = new URL(url).origin;
+            } catch (e) {
+                tracker.failed('invalid_url');
+                alert('Target URL is not a valid URL');
+                return;
+            }
 
             const token = {
                 type: 'guide',
@@ -392,6 +431,7 @@
             const appWindow = window.open(launchUrl, '_blank');
 
             if (!appWindow) {
+                tracker.failed('popup_blocked', targetOrigin);
                 status.textContent = 'Popup blocked — allow popups and retry';
                 status.className = 'dl-status error';
                 return;
@@ -399,6 +439,9 @@
 
             status.textContent = 'Launched — designer should load via URL token';
             status.className = 'dl-status launched';
+
+            // The window opened, but nothing confirms the designer actually loaded in it.
+            tracker.launched(targetOrigin, false, null);
         }
 
         function launchDesignerPostMessage() {
@@ -407,10 +450,18 @@
             const guideId = document.getElementById('dlGuideId').value.trim();
             const stepId  = document.getElementById('dlStepId').value.trim();
             const status  = document.getElementById('dlStatus');
+            const tracker = designerLaunchTracker('post_message', appId, guideId, stepId);
 
-            if (!url) { alert('Target URL is required'); return; }
+            if (!url) { tracker.failed('missing_url'); alert('Target URL is required'); return; }
 
-            const origin = new URL(url).origin;
+            let origin;
+            try {
+                origin = new URL(url).origin;
+            } catch (e) {
+                tracker.failed('invalid_url');
+                alert('Target URL is not a valid URL');
+                return;
+            }
 
             function buildToken() {
                 return {
@@ -434,26 +485,40 @@
             status.textContent = 'Opening with URL token + listening for postMessage…';
             status.className = 'dl-status waiting';
 
+            const openedAt = Date.now();
             const popup = window.open(launchUrl, 'pendoXSSPoc', 'width=1,height=1');
             if (!popup) {
+                tracker.failed('popup_blocked', origin);
                 status.textContent = 'Popup blocked — allow popups and retry';
                 status.className = 'dl-status error';
                 return;
             }
 
+            // The status class stays 'waiting' after pendo::ready, so remember it for the timeout.
+            // `settled` keeps a retry's shared status line from making this launch look timed out.
+            let pendoReadyReceived = false;
+            let settled = false;
+
             function handler(ev) {
                 if (!ev.data || typeof ev.data.type !== 'string') return;
                 if (ev.data.type === 'pendo::ready') {
+                    pendoReadyReceived = true;
                     status.textContent = 'Received pendo::ready — sending launch token via postMessage…';
                     popup.postMessage({ type: 'pendo-designer-launch::launch', token: buildToken() }, '*');
                 } else if (ev.data.type === 'pendo-designer-launch::ready') {
                     status.textContent = 'Designer launched via postMessage!';
                     status.className = 'dl-status launched';
                     window.removeEventListener('message', handler);
+                    settled = true;
+                    tracker.launched(origin, true, Date.now() - openedAt);
                 } else if (ev.data.type === 'pendo-designer-launch::error') {
                     status.textContent = 'Launch rejected: ' + (ev.data.reason || 'unknown');
                     status.className = 'dl-status error';
                     window.removeEventListener('message', handler);
+                    settled = true;
+                    tracker.failed('rejected', origin, {
+                        rejectionReason: String(ev.data.reason || 'unknown').slice(0, 200)
+                    });
                 }
             }
 
@@ -465,6 +530,7 @@
                     status.textContent = 'Timed out — no pendo::ready or postMessage response';
                     status.className = 'dl-status error';
                 }
+                if (!settled) tracker.failed('timeout', origin, { pendoReadyReceived: pendoReadyReceived });
             }, 15000);
         }
 
@@ -639,7 +705,8 @@
             return value.split(',').map(tier => tier.trim()).filter(Boolean);
         }
 
-        function activateSession(session) {
+        // source: 'form' | 'restored_session'. expiryHours is only known for form submissions.
+        function activateSession(session, source, expiryHours = null) {
             const { visitorId, accountId, expiresAt, doNotTrack } = session;
             const tiers = session.cookieConsentTiers || [];
             const options = {
@@ -654,6 +721,18 @@
             if (tiers.length) options.cookieConsentTiers = tiers;
 
             pendo.initialize(options);
+
+            // With doNotTrack on this lands on __cookieless_visitor__, and tiers that disable
+            // analytics or trackEvents drop it -- both by design.
+            pendo.track('visitor_identified', {
+                identificationSource: source,
+                hasAccountId: !!accountId,
+                doNotTrack: !!doNotTrack,
+                cookieConsentTiers: tiers.join(',').slice(0, 200),
+                consentTierCount: tiers.length,
+                sessionPersisted: !!expiresAt,
+                expiryHours: expiryHours
+            });
 
             document.getElementById('idOverlay').classList.add('hidden');
 
@@ -688,7 +767,7 @@
                 };
 
                 if (expiryHours > 0) saveSession(session);
-                activateSession(session);
+                activateSession(session, 'form', expiryHours);
             });
 
             document.getElementById('clearSessionBtn').addEventListener('click', clearSession);
@@ -701,13 +780,22 @@
                 console.log('simple form submit', values);
                 status.textContent = 'Submitted ' + JSON.stringify(values);
                 status.className = 'dl-status launched';
+
+                // Derived, non-PII properties only -- never the name, email or message text.
+                pendo.track('simple_form_submitted', {
+                    topic: values.topic, // feedback | bug | feature
+                    messageLength: (values.message || '').length,
+                    hasName: !!values.name,
+                    hasEmail: !!values.email,
+                    filledFieldCount: Object.values(values).filter(Boolean).length
+                });
             });
 
             const session = loadSession();
             if (session) {
                 document.getElementById('doNotTrack').checked = !!session.doNotTrack;
                 document.getElementById('cookieTiers').value = (session.cookieConsentTiers || []).join(', ');
-                activateSession(session);
+                activateSession(session, 'restored_session');
             }
         });
     </script>

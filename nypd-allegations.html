@@ -1,4 +1,29 @@
 <html>
+    <!-- Pendo agent -- same install as vds.html -->
+    <script>
+        (function(apiKey){
+            (function(p,e,n,d,o){var v,w,x,y,z;o=p[d]=p[d]||{};o._q=o._q||[];
+            v=['initialize','identify','updateOptions','pageLoad','track'];for(w=0,x=v.length;w<x;++w)(function(m){
+                o[m]=o[m]||function(){o._q[m===v[0]?'unshift':'push']([m].concat([].slice.call(arguments,0)));};})(v[w]);
+                y=e.createElement(n);y.async=!0;y.src='https://cdn.pendo-atlas.pendo-dev.com/agent/static/'+apiKey+'/pendo.js';
+                z=e.getElementsByTagName(n)[0];z.parentNode.insertBefore(y,z);})(window,document,'script','pendo');
+        })('bc842892-890f-45bc-4104-bb08da92ddb4');
+
+        // Reuses whatever session vds.html stored, so the pages identify as the same visitor.
+        (function initPendo() {
+            let session = null;
+            try {
+                const raw = localStorage.getItem('pendo_session');
+                const parsed = raw && JSON.parse(raw);
+                if (parsed && Date.now() < parsed.expiresAt) session = parsed;
+            } catch {}
+
+            pendo.initialize({
+                visitor: { id: session ? session.visitorId : 'nypd-allegations-anon' },
+                account: { id: (session && session.accountId) || 'no-account' }
+            });
+        })();
+    </script>
     <script src="./allegations.js"></script>
     <!-- <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css"
         integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
@@ -89,6 +114,22 @@
         });
 
         new Tablesort(document.getElementById('allegations-table'));
+
+        // Tablesort fires afterSort once the rows are re-ordered. The active header is the one carrying
+        // aria-sort, which is the only place the sort direction is exposed.
+        const allegationsTable = document.getElementById('allegations-table');
+        allegationsTable.addEventListener('afterSort', function() {
+            const header = allegationsTable.querySelector('th[aria-sort]');
+            if (!header) return;
+
+            pendo.track('allegations_table_sorted', {
+                sortColumn: header.className,
+                sortColumnLabel: header.textContent.trim(),
+                sortDirection: header.getAttribute('aria-sort'),
+                officerCount: allegationsTable.tBodies[0].rows.length,
+                allegationCount: window.allegations.length
+            });
+        });
 
         function generateUniqueOffensesText(officerOffensesArray) {
             const uniqueOffenses = officerOffensesArray.reduce((acc, row) => {

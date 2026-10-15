@@ -290,13 +290,22 @@
             return expiresAt ? new Date(expiresAt).toLocaleString() : 'this session only';
         }
 
-        function activateSession(visitorId, accountId, expiresAt) {
+        // source: 'form' | 'restored_session'. expiryHours is only known for form submissions.
+        function activateSession(visitorId, accountId, expiresAt, source, expiryHours = null) {
             currentVisitorId = visitorId;
             currentAccountId = accountId;
 
             pendo.initialize({
                 visitor: { id: visitorId },
                 account: { id: accountId || 'no-account' }
+            });
+
+            // Start of an experiments session. Pendo attaches the visitor and account itself.
+            pendo.track('experiment_participant_identified', {
+                identificationSource: source,
+                hasAccountId: !!accountId,
+                sessionPersisted: !!expiresAt,
+                expiryHours: expiryHours
             });
 
             document.getElementById('identificationForm').style.display = 'none';
@@ -310,7 +319,7 @@
         (function() {
             const session = loadSession();
             if (session) {
-                activateSession(session.visitorId, session.accountId, session.expiresAt);
+                activateSession(session.visitorId, session.accountId, session.expiresAt, 'restored_session');
             }
         })();
 
@@ -329,7 +338,7 @@
 
             const expiresAt = expiryHours > 0 ? Date.now() + expiryHours * 60 * 60 * 1000 : null;
             if (expiryHours > 0) saveSession(visitorId, accountId, expiryHours);
-            activateSession(visitorId, accountId, expiresAt);
+            activateSession(visitorId, accountId, expiresAt, 'form', expiryHours);
         });
 
         document.getElementById('clearSessionBtn').addEventListener('click', clearSession);

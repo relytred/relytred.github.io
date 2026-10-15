@@ -6,6 +6,8 @@ class RecipePlannerApp {
         this.shoppingList = {};
         this.currentWeek = new Date();
         this.editingRecipeId = null;
+        this.searchTrackTimer = null;
+        this.shoppingListCompleted = false;
         
         this.init();
     }
@@ -299,7 +301,20 @@ class RecipePlannerApp {
         const dietaryTags = Array.from(document.querySelectorAll('.dietary-tags input:checked'))
             .map(cb => cb.value);
 
+        // closeRecipeModal() clears editingRecipeId, so read the create/edit mode up front.
+        const isEdit = Boolean(this.editingRecipeId);
+
         if (ingredients.length === 0 || instructions.length === 0) {
+            pendo.track('recipe_save_validation_failed', {
+                mode: isEdit ? 'edit' : 'create',
+                ingredientCount: ingredients.length,
+                instructionCount: instructions.length,
+                missingFields: [
+                    ingredients.length === 0 && 'ingredients',
+                    instructions.length === 0 && 'instructions'
+                ].filter(Boolean).join(','),
+                category: document.getElementById('recipe-category').value
+            });
             alert('Please add at least one ingredient and one instruction.');
             return;
         }
@@ -317,8 +332,12 @@ class RecipePlannerApp {
             notes: document.getElementById('recipe-notes').value
         };
 
+        // The version being replaced, kept to report what the edit changed.
+        let previous = null;
+
         if (this.editingRecipeId) {
             const index = this.recipes.findIndex(r => r.id === this.editingRecipeId);
+            previous = this.recipes[index] || null;
             this.recipes[index] = recipe;
         } else {
             this.recipes.push(recipe);
@@ -328,10 +347,51 @@ class RecipePlannerApp {
         this.renderRecipes();
         this.closeRecipeModal();
         this.showMessage('Recipe saved successfully!', 'success');
+
+        if (isEdit) {
+            pendo.track('recipe_updated', {
+                recipeId: recipe.id,
+                category: recipe.category,
+                previousCategory: previous ? previous.category : null,
+                servings: recipe.servings,
+                prepTime: recipe.prepTime,
+                cookTime: recipe.cookTime,
+                ingredientCount: ingredients.length,
+                instructionCount: instructions.length,
+                dietaryTags: dietaryTags.join(','),
+                hasNotes: !!recipe.notes,
+                changedFields: previous ? this.getChangedRecipeFields(previous, recipe).join(',') : ''
+            });
+        } else {
+            pendo.track('recipe_created', {
+                recipeId: recipe.id,
+                category: recipe.category,
+                servings: recipe.servings,
+                prepTime: recipe.prepTime,
+                cookTime: recipe.cookTime,
+                totalTime: recipe.prepTime + recipe.cookTime,
+                ingredientCount: ingredients.length,
+                instructionCount: instructions.length,
+                dietaryTags: dietaryTags.join(','),
+                hasNotes: !!recipe.notes,
+                totalRecipeCount: this.recipes.length
+            });
+        }
+    }
+
+    // Names of the fields whose values differ between two versions of a recipe.
+    getChangedRecipeFields(previous, recipe) {
+        return ['name', 'category', 'servings', 'prepTime', 'cookTime', 'ingredients', 'instructions', 'dietaryTags', 'notes']
+            .filter(field => JSON.stringify(previous[field]) !== JSON.stringify(recipe[field]));
     }
 
     deleteRecipe(recipeId) {
         if (confirm('Are you sure you want to delete this recipe?')) {
+            // Read what the deletion removes before the recipe and its meal-plan slots are filtered out.
+            const deleted = this.recipes.find(r => r.id === recipeId);
+            const mealSlotsRemoved = Object.values(this.mealPlans)
+                .reduce((count, meals) => count + meals.filter(meal => meal.recipeId === recipeId).length, 0);
+
             this.recipes = this.recipes.filter(r => r.id !== recipeId);
             
             // Remove from meal plans
@@ -343,6 +403,19 @@ class RecipePlannerApp {
             this.renderRecipes();
             this.renderMealPlanner();
             this.showMessage('Recipe deleted successfully!', 'success');
+
+            // Search results are not re-rendered after a delete, so a stale card there can confirm a
+            // second delete of a recipe that is already gone -- nothing was removed, so skip it.
+            if (deleted) {
+                pendo.track('recipe_deleted', {
+                    recipeId: recipeId,
+                    category: deleted.category,
+                    dietaryTags: deleted.dietaryTags.join(','),
+                    mealSlotsRemoved: mealSlotsRemoved,
+                    remainingRecipeCount: this.recipes.length,
+                    sourceSection: document.querySelector('.content-section.active').id
+                });
+            }
         }
     }
 
@@ -413,6 +486,25 @@ class RecipePlannerApp {
 
     filterRecipes() {
         this.renderRecipes();
+
+        // The search box fires on every keystroke, so report the search once typing settles.
+        clearTimeout(this.searchTrackTimer);
+        this.searchTrackTimer = setTimeout(() => this.trackQuickSearch(), 600);
+    }
+
+    trackQuickSearch() {
+        const categoryFilter = document.getElementById('category-filter').value;
+        const searchTerm = document.getElementById('recipe-search').value.trim().toLowerCase();
+
+        if (!searchTerm && !categoryFilter) return;
+
+        pendo.track('recipe_search_performed', {
+            searchType: 'quick',
+            query: searchTerm.slice(0, 100),
+            categoryFilter: categoryFilter || 'all',
+            resultsCount: this.getFilteredRecipes().length,
+            totalRecipeCount: this.recipes.length
+        });
     }
 
     // Meal Planner
@@ -489,6 +581,12 @@ class RecipePlannerApp {
         });
 
         if (recipes.length === 0) {
+            pendo.track('meal_slot_no_recipes_found', {
+                mealType: mealType,
+                plannedDate: date,
+                totalRecipeCount: this.recipes.length,
+                eligibleCategories: mealType === 'breakfast' ? 'breakfast' : 'lunch,dinner'
+            });
             alert('No suitable recipes found. Please add some recipes first.');
             return;
         }
@@ -544,6 +642,9 @@ class RecipePlannerApp {
             this.mealPlans[date] = [];
         }
 
+        // The slot's current meal, read before it is replaced to tell an assignment from a swap or removal.
+        const previous = this.mealPlans[date].find(m => m.type === mealType);
+
         // Remove existing meal of this type
         this.mealPlans[date] = this.mealPlans[date].filter(m => m.type !== mealType);
         
@@ -558,6 +659,35 @@ class RecipePlannerApp {
         this.saveData();
         this.renderMealPlanner();
         this.closeMealSelector();
+
+        // Skip saves that change nothing: 'Remove meal' on an empty slot, or the same recipe again.
+        const previousRecipeId = previous ? previous.recipeId : '';
+        if (recipeId !== previousRecipeId) {
+            const recipe = this.recipes.find(r => r.id === recipeId);
+
+            pendo.track('meal_plan_updated', {
+                action: !recipeId ? 'removed' : (previous ? 'replaced' : 'assigned'),
+                mealType: mealType,
+                plannedDate: date,
+                recipeId: recipeId || null,
+                recipeCategory: recipe ? recipe.category : null,
+                previousRecipeId: previousRecipeId || null,
+                mealsPlannedThisWeek: this.countMealsPlannedThisWeek()
+            });
+        }
+    }
+
+    // Meals planned across the week currently shown in the planner.
+    countMealsPlannedThisWeek() {
+        const startOfWeek = this.getStartOfWeek(this.currentWeek);
+        let count = 0;
+
+        for (let i = 0; i < 7; i++) {
+            const date = new Date(startOfWeek.getTime() + (i * 24 * 60 * 60 * 1000));
+            count += (this.mealPlans[date.toISOString().split('T')[0]] || []).length;
+        }
+
+        return count;
     }
 
     closeMealSelector() {
@@ -581,6 +711,8 @@ class RecipePlannerApp {
 
         // Collect ingredients from all meals in current week
         const startOfWeek = this.getStartOfWeek(this.currentWeek);
+        let mealsIncluded = 0;
+        const recipeIds = new Set();
         for (let i = 0; i < 7; i++) {
             const date = new Date(startOfWeek.getTime() + (i * 24 * 60 * 60 * 1000));
             const dateStr = date.toISOString().split('T')[0];
@@ -589,6 +721,8 @@ class RecipePlannerApp {
             dayMeals.forEach(meal => {
                 const recipe = this.recipes.find(r => r.id === meal.recipeId);
                 if (recipe) {
+                    mealsIncluded++;
+                    recipeIds.add(recipe.id);
                     recipe.ingredients.forEach(ingredient => {
                         const key = ingredient.toLowerCase();
                         if (ingredients[key]) {
@@ -625,10 +759,23 @@ class RecipePlannerApp {
         this.saveData();
         this.renderShoppingList();
         this.showMessage('Shopping list generated successfully!', 'success');
+
+        // The success message shows even when no meals are planned; isEmpty and mealsIncluded tell those apart.
+        pendo.track('shopping_list_generated', {
+            weekStartDate: startOfWeek.toISOString().split('T')[0],
+            mealsIncluded: mealsIncluded,
+            uniqueRecipeCount: recipeIds.size,
+            uniqueIngredientCount: Object.keys(ingredients).length,
+            categoryCount: Object.values(categorizedIngredients).filter(items => items.length > 0).length,
+            uncategorizedCount: categorizedIngredients['Other'].length,
+            isEmpty: Object.keys(ingredients).length === 0
+        });
     }
 
     renderShoppingList() {
         const container = document.getElementById('shopping-categories');
+        // Every render starts with all items unchecked, so the list can be completed afresh.
+        this.shoppingListCompleted = false;
         
         if (Object.keys(this.shoppingList).length === 0 || 
             Object.values(this.shoppingList).every(cat => cat.length === 0)) {
@@ -666,6 +813,17 @@ class RecipePlannerApp {
         const item = checkbox.closest('.shopping-item');
         if (checkbox.checked) {
             item.classList.add('completed');
+
+            // Checked state lives only in the DOM and resets on re-render, so judge completion now.
+            // Unchecking and re-checking an item on an already completed list doesn't count again.
+            const boxes = document.querySelectorAll('#shopping-categories .shopping-item input[type="checkbox"]');
+            if (!this.shoppingListCompleted && Array.from(boxes).every(cb => cb.checked)) {
+                this.shoppingListCompleted = true;
+                pendo.track('shopping_list_completed', {
+                    itemCount: boxes.length,
+                    categoryCount: document.querySelectorAll('#shopping-categories .shopping-category').length
+                });
+            }
         } else {
             item.classList.remove('completed');
         }
@@ -689,6 +847,15 @@ class RecipePlannerApp {
         });
 
         this.renderSearchResults(filteredRecipes);
+
+        pendo.track('recipe_search_performed', {
+            searchType: 'advanced',
+            query: searchTerm.trim().slice(0, 100),
+            dietaryFilter: dietaryFilter || 'any',
+            maxPrepTime: maxPrepTime,
+            resultsCount: filteredRecipes.length,
+            totalRecipeCount: this.recipes.length
+        });
     }
 
     renderSearchResults(recipes = this.recipes) {

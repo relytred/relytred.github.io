@@ -1,7 +1,7 @@
 /*****************************
  *  LOGIN FUNCTIONS
  ******************************/
-function login(userInfo = {}) {
+function login(userInfo = {}, loginMethod) {
     let { email, department } = userInfo;
     if (!email || !department) {
         return;
@@ -18,6 +18,13 @@ function login(userInfo = {}) {
             email: email // email:        // Optional // role:         // Optional // You can add any additional visitor level key-values here, // as long as it's not one of the above reserved names.
         }
     });
+
+    // After initialize, so it is attributed to the visitor just identified. The email is already the
+    // visitor id; department is sent because this page initializes without an account.
+    pendo.track('user_logged_in', {
+        loginMethod: loginMethod, // 'form' for a sign-in, 'cookie' when a saved login is restored on load
+        department: department
+    });
 }
 
 const emailCookie = 'VISITOR-UNIQUE-ID';
@@ -28,7 +35,7 @@ let department = getCookie(departmentCookie);
 let loginForm = $('#login');
 loginForm.addEventListener('submit', function (submitEvent) {
     submitEvent.preventDefault();
-    login(getLoginFormData());
+    login(getLoginFormData(), 'form');
 });
 $('#logout').addEventListener('click', logout);
 function logout() {
@@ -39,7 +46,7 @@ function logout() {
 
 // Login modal show/hide
 if (email && department) {
-    login({ email, department });
+    login({ email, department }, 'cookie');
 } else {
     showLoginModal();
 }
@@ -146,7 +153,7 @@ for (var i = 0; i < increments.length; i++) {
         let wheelIndex = parseInt(this.getAttribute('index'));
         combinationLock.increment(wheelIndex);
         document.querySelectorAll('.digit')[wheelIndex].value = combinationLock.wheels[wheelIndex];
-        checkLock();
+        checkLock('increment_button');
     });
 }
 
@@ -158,7 +165,7 @@ for (var i = 0; i < decrements.length; i++) {
         let wheelIndex = parseInt(this.getAttribute('index'));
         combinationLock.decrement(wheelIndex);
         document.querySelectorAll('.digit')[wheelIndex].value = combinationLock.wheels[wheelIndex];
-        checkLock();
+        checkLock('decrement_button');
     });
 }
 
@@ -172,7 +179,7 @@ for (var i = 0; i < wheels.length; i++) {
             let wheelIndex = parseInt(this.getAttribute('index'));
             combinationLock.increment(wheelIndex);
             document.querySelectorAll('.digit')[wheelIndex].value = combinationLock.wheels[wheelIndex];
-            checkLock();
+            checkLock('arrow_key');
         }
 
         // arrow key down
@@ -180,14 +187,14 @@ for (var i = 0; i < wheels.length; i++) {
             let wheelIndex = parseInt(this.getAttribute('index'));
             combinationLock.decrement(wheelIndex);
             document.querySelectorAll('.digit')[wheelIndex].value = combinationLock.wheels[wheelIndex];
-            checkLock();
+            checkLock('arrow_key');
         }
 
         // number key (0 - 9)
         if (e.which > 47 && e.which < 58) {
             let wheelIndex = parseInt(this.getAttribute('index'));
             combinationLock.wheels[wheelIndex] = parseInt(document.querySelectorAll('.digit')[wheelIndex].value);
-            checkLock();
+            checkLock('number_key');
         }
 
         // if number is longer than 1 digit
@@ -203,12 +210,29 @@ for (var i = 0; i < wheels.length; i++) {
 }
 
 // Check lock
-function checkLock() {
+// Context for combination_lock_unlocked: how many wheel changes, and how long, it took to solve.
+const pageLoadedAt = Date.now();
+let wheelChangeCount = 0;
+
+function checkLock(inputMethod) {
+    const wasLocked = combinationLock.locked;
+    wheelChangeCount++;
     combinationLock.check();
     if (combinationLock.locked === false) {
         document.querySelector('#indicator').classList.remove('locked');
         document.querySelector('#indicator').classList.add('unlocked');
         activatePank();
+
+        // checkLock() runs after every wheel change, so only the locked -> unlocked transition counts.
+        if (wasLocked) {
+            pendo.track('combination_lock_unlocked', {
+                inputMethod: inputMethod, // 'increment_button' | 'decrement_button' | 'arrow_key' | 'number_key'
+                wheelChangeCount: wheelChangeCount,
+                msToUnlock: Date.now() - pageLoadedAt,
+                hintViewed: shownHint,
+                answerRevealed: answerRevealed
+            });
+        }
     } else {
         document.querySelector('#indicator').classList.add('locked');
         document.querySelector('#indicator').classList.remove('unlocked');
@@ -237,9 +261,11 @@ function $(selector) {
 }
 
 let shownHint = false;
+let answerRevealed = false;
 $('#hint').addEventListener('click', (evt) => {
     if (shownHint) {
         alert(`The combination is 1-2-3-4`);
+        answerRevealed = true;
     } else {
         alert(`That's the kinda thing an idiot would have on his luggage!`);
         shownHint = true;

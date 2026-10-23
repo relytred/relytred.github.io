@@ -186,6 +186,18 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.07);
         }
 
+        /* ── Embedded guide container ─────────────────────────── */
+        /* No padding: the embed meets the border, so any inset comes from the guide's
+           own --pendo-embedded-margin rather than from the host. */
+        .embedded-guide-container {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin: 20px 10%;
+            min-height: 220px;
+            font-family: Arial, sans-serif;
+        }
+
         .designer-launch-panel h3 {
             margin: 0 0 16px;
             font-size: 15px;
@@ -868,6 +880,9 @@
             <button class="popover-close" popovertarget="popoverBravo" popovertargetaction="hide">Close</button>
         </div>
         
+        <!-- Embedded guide container -->
+        <div class="embedded-guide-container"></div>
+
         <!-- Designer Launch Panel -->
         <div class="designer-launch-panel">
             <h3>Launch Designer</h3>

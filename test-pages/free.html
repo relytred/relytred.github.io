@@ -1,6 +1,6 @@
 <html>
     <head>
-        <title>Classy Town</title>
+        <title>VDS TOWN</title>
     </head>
     <style>
         body {
@@ -18,19 +18,33 @@
             margin-top: 10px;
             margin-bottom: 20px;
         }
-        iframe {
+
+        .alert {
             width: 100%;
-            height: 1000px;
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 10px;
+            margin-bottom: 20px;
+            background: magenta;
         }
     </style>
-
-<script>
-    (function(apiKey){
-        (function(p,e,n,d,o){var v,w,x,y,z;o=p[d]=p[d]||{};o._q=o._q||[];
-        v=['initialize','identify','updateOptions','pageLoad','track'];for(w=0,x=v.length;w<x;++w)(function(m){
-            o[m]=o[m]||function(){o._q[m===v[0]?'unshift':'push']([m].concat([].slice.call(arguments,0)));};})(v[w]);
-            y=e.createElement(n);y.async=!0;y.src='https://cdn.pendo-atlas.pendo-dev.com/agent/static/'+apiKey+'/pendo.js';
-            z=e.getElementsByTagName(n)[0];z.parentNode.insertBefore(y,z);})(window,document,'script','pendo');
+    <script>
+        function addAlert() {
+            const ele = document.createElement('div');
+            ele.innerText = 'This alert will hide after a lil bit';
+            ele.className = 'alert';
+            ele.setAttribute('id', 'alert')
+            document.body.appendChild(ele);
+            setTimeout(() => ele.remove(), 10000)
+        }
+    </script>
+    <script>
+        (function(apiKey){
+            (function(p,e,n,d,o){var v,w,x,y,z;o=p[d]=p[d]||{};o._q=o._q||[];
+            v=['initialize','identify','updateOptions','pageLoad','track'];for(w=0,x=v.length;w<x;++w)(function(m){
+                o[m]=o[m]||function(){o._q[m===v[0]?'unshift':'push']([m].concat([].slice.call(arguments,0)));};})(v[w]);
+                y=e.createElement(n);y.async=!0;y.src='https://cdn.pendo-atlas.pendo-dev.com/agent/static/'+apiKey+'/pendo.js';
+                z=e.getElementsByTagName(n)[0];z.parentNode.insertBefore(y,z);})(window,document,'script','pendo');  
     
             // This function creates anonymous visitor IDs in Pendo unless you change the visitor id field to use your app's values
             // This function uses the placeholder 'ACCOUNT-UNIQUE-ID' value for account ID unless you change the account id field to use your app's values
@@ -48,7 +62,7 @@
                 },
     
                 account: {
-                    id:           'ACCOUNT-UNIQUE-ID' // Required if using Pendo Feedback, default uses the value 'ACCOUNT-UNIQUE-ID'
+                    id:           12345 // Required if using Pendo Feedback, default uses the value 'ACCOUNT-UNIQUE-ID'
                     // name:         // Optional
                     // is_paying:    // Recommended if using Pendo Feedback
                     // monthly_value:// Recommended if using Pendo Feedback
@@ -60,10 +74,11 @@
                     // as long as it's not one of the above reserved names.
                 }
             });
-    })('efca7f2b-9c74-45ad-6dec-7b1897a1eccf');
+        })('0283f10e-1e90-45ee-768e-7eec0f40a807');
     </script>
     <body>
-        <div class="title">I live above the frame</div>
-        <iframe src="/classic.html"></iframe>
+        <div class="title">Welcome to the guide building playground!</div>
+        <button onclick="addAlert()">Add alert! </button>
+        <iframe sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" allow="" frameborder="0" src="/test-pages/sandboxed.html"></iframe>
     </body>
 </html>

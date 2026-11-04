@@ -3,7 +3,7 @@
         <title>IFRAME TOWN</title>
     </head>
     <style>
-        html {
+        body {
             margin: 0;
             padding: 0;
             height: 100%;
@@ -45,17 +45,18 @@
             const ele = document.createElement('div');
             ele.innerText = 'This alert will hide after a lil bit';
             ele.className = 'alert';
-            // document.body.appendChild(ele);
+            document.body.appendChild(ele);
             setTimeout(() => ele.remove(), 10000)
         }
     </script>
-    <frameset>
-      <div class="title">HOWDY PARDNER, WELCOME TO IFRAME TOWN!</div>
-      <button onclick="">Add alert borken! </button> 
-      <div class="iframe-container">
-          <iframe src="/iframe-town-inner-1.html"></iframe>
-          <iframe src="/iframe-town-inner-1.html"></iframe>
-          <!--iframe src="https://someapp.com/"></iframe-->
-      </div>
-    </frameset>
+    <body>
+        <div class="title">HOWDY PARDNER, WELCOME TO IFRAME TOWN!</div>
+        <button onclick="addIframe()">Add alert! </button> 
+        <div class="iframe-container">
+            <iframe src="/test-pages/iframe-town-inner-1.html"></iframe>
+            <iframe src="/test-pages/iframe-town-inner-1.html"></iframe>
+            <iframe sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" allow="" frameborder="0" src="/test-pages/sandboxed.html"></iframe>
+            <!--iframe src="https://someapp.com/"></iframe-->
+        </div>
+    </body>
 </html>

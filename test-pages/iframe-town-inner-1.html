@@ -34,7 +34,7 @@
         <script>
             function addIframe() {
                 const iframe = document.createElement('iframe');
-                iframe.src = '/iframe-town-inner-2.html';
+                iframe.src = '/test-pages/iframe-town-inner-2.html';
                 document.querySelector('.frame-container').appendChild(iframe);
             }
 
@@ -63,7 +63,7 @@
             <button onclick="addIframe()">Add another iframe in...this iframe</button>
         </div>
         <div class="frame-container">
-            <iframe src="/iframe-town-inner-2.html"></iframe>
+            <iframe src="/test-pages/iframe-town-inner-2.html"></iframe>
         </div>
         <script>
             var someId = String(parseInt(Math.random() * 10000000));

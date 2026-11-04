@@ -4,7 +4,7 @@ A comprehensive web application for managing recipes and planning meals, built w
 
 ## 🚀 Getting Started
 
-1. **Open the app**: Navigate to `recipe-planner.html` in your browser
+1. **Open the app**: Navigate to `recipe-planner/index.html` in your browser
 2. **Or view online**: Upload to your GitHub pages and access via your repository URL
 
 ## ✨ Features
